@@ -56,7 +56,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Units | Meters. Y is up. Table surface at y = 0. |
 | Paper | The real prints, measured from the scans: 0.231 × 0.294 m portrait (11:14), thickness 0.00025 m. (Was 8×10 in, 0.203 × 0.254 m.) |
 | Acetate | Paper + overhang: 0.239 × 0.304 m. Top edges aligned at the hinge. Overhang 4 mm left/right, 10 mm at the bottom. |
-| Tape | Kraft paper tape, 0.025 m wide, 12.5 mm on paper + 12.5 mm on acetate, runs the full top edge plus 5 mm past each end. |
+| Tape | Kraft paper tape, 0.025 m wide, runs the full top edge plus 5 mm past each end. Half lies on the acetate's top face; the other half wraps over the top edge onto the back of the paper (user, 2026-09-29), so the print's face stays bare when the sheet is open. (Was "12.5 mm on paper + 12.5 mm on acetate", which put the paper half under the closed acetate.) |
 | Hinge | Top edge = the edge farthest from the camera. Acetate flips away from the viewer and lies open on the table above the paper. |
 | Layout | Sets centered at x = ±0.1495 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
 | Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
@@ -98,7 +98,7 @@ Canvas sized to the paper at ≈ 11.8 px/mm (2726 × 3469 px). Draw in mm.
 | smudge | acetate roughnessMap + clearcoatRoughnessMap | Built instead from the ambientCG scans (user): fingerprints (Fingerprints001/002 roughness) shown only through 3–5 soft windows per sheet (seeded), plus a faint water-spot haze (SurfaceImperfections001 at 0.1). Was: base 0.06; 6–10 soft blurred ellipses up to 0.25; 2–3 fingerprint-like ridge blobs. |
 | scratch | acetate clearcoatNormalMap | Built instead from the ambientCG Scratches005 mask (user): thresholded at 0.35 to keep real scratches (not the faint brushing), 1 px blur, height → normal, tiled every 0.15 m. Was: 30–60 thin random lines. |
 | crease | acetate normalMap band, top 25 mm only | 3–5 faint lines parallel to the hinge (procedural; Gaussian ridges/valleys that drift slightly) |
-| kraft | tape map + roughnessMap + alphaMap | fiber noise on `#b9834a` with ±8% value variation; alpha 1 except jagged torn ends |
+| kraft | tape map + alphaMap | Color from the ambientCG Paper006 scan (CC0, `public/assets/tape/`), tinted so that its mean is `#b9834a`; the original recipe (fBm on `#b9834a`, ±8% value) is the fallback when the file is missing. Torn ends are a separate map on uv1: alpha 1 except past a jagged tear at each end (random slant plus angular noise), with a light fiber margin and loose fibers in R. No roughnessMap: at roughness 0.95 its variation doesn't show. |
 | dust | optional decal | 20–40 tiny light specks, alpha |
 | footprintShadow | soft shadow decal under acetate | rectangle with 8 mm soft edge, alpha 1 → 0 |
 
@@ -153,11 +153,15 @@ Edges
 
 ### 5.4 Tape
 
-- Two strips, each 0.0125 × (0.239 + 0.010) m.
-  - `tapePaper`: static, on the paper side of the hinge, y = paper top + 0.0001.
-  - `tapeAcetate`: on the acetate side, parented to an `Object3D` at the hinge that rotates by θ. The acetate has zero sag at the hinge, so they agree.
-- Optional seam cover: cylinder radius 0.5 mm along the hinge, same material.
-- `MeshStandardMaterial`: map/roughnessMap/alphaMap = kraft, roughness 0.95, normalMap = paperGrain tiled 3×, normalScale 0.3, `alphaTest` 0.5, `DoubleSide`. `castShadow`.
+- One strip, 0.025 m across × (0.239 + 0.010) m long, posed on the CPU together with the acetate. Across the tape, starting from its free edge on the acetate:
+  - Acetate half: on the sheet's top face, 0.1 mm above it (the tape's thickness), turning rigidly with θ about the sheet's hinge line (§5.5 z0). The acetate has zero sag at the hinge, so they agree.
+  - Fold: bends around the top edge as a cubic Bézier rebuilt from θ, with circular-arc handles for the turn between the two halves. It makes half a turn around the stacked edges when closed (paper and acetate edges are aligned) and is nearly straight when open.
+  - Paper half: glued to the back of the paper, static, 0.1 mm above the table (inside the paper's box, which hides it). Only its ends show, as flaps past the paper's sides once the sheet opens.
+  - Normals are analytic (perpendicular to the strip's cross-section), so the glued halves shade flat.
+  - (Was: two strips, `tapePaper` on the paper's face and `tapeAcetate` on a hinge `Object3D`, plus an optional 0.5 mm seam cylinder.)
+- Ends are hand-torn, via the tear map on uv1 (§4.3). The two layers show different stretches of the same tear, so in places the wrapped layer's edge peeks out past the top one.
+- `MeshStandardMaterial`: map = kraft (tiled every 0.1 m in table space, skewed so that no tile repeats along a tape), roughness 0.95, normalMap = paperGrain tiled 3× along the tape, normalScale 0.3, alphaMap = tear map, `alphaTest` 0.5, `DoubleSide`. `castShadow`, `receiveShadow`.
+- A shader patch lightens the fiber margin along each tear and darkens the adhesive side (back faces): paper glued to film, seen through the open acetate, looks darker and richer, like damp paper (albedo^1.25).
 
 ### 5.5 Acetate deformation formulas
 
@@ -267,11 +271,11 @@ As specified.
 
 ## 8. Visual acceptance ("what done looks like")
 
-- Closed, at rest: acetate reads as clear plastic. One or two soft, long highlight streaks follow the wave crests. Paper under it is fully readable, no more than ~5% darker. Bottom and side overhang show as a faint bright line. Tape is matte and fibrous.
+- Closed, at rest: acetate reads as clear plastic. One or two soft, long highlight streaks follow the wave crests. Paper under it is fully readable, no more than ~5% darker. Bottom and side overhang show as a faint bright line. Tape is matte and fibrous, wrapped over the top edge, with torn ends.
 - Moving the mouse slides the highlights across the acetate.
 - Mid-flip (60°–120°): the sheet flashes near mirror-like; the table and paper are visible reflected in it.
 - Landing: the sheet overshoots once and settles; the far edge lags the hinge during the motion.
-- Open: acetate lies flat above the paper, slightly wavy, tape folded at the hinge, paper bare.
+- Open: acetate lies flat above the paper, slightly wavy, the tape under its hinge edge (glued side seen through the plastic), paper bare.
 - Zoomed in: frames stay sharp, no shimmer or moiré on the scan, scratches and smudges become visible.
 - Two sets never touch when both are open.
 

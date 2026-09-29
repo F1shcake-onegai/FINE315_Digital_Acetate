@@ -119,8 +119,7 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
   mesh.add(rim);
 
   function setPose(theta: number, omega = 0): void {
-    // §5.5: z0 is the height of the hinge side: on the paper when closed, on the table when open.
-    const z0 = MathUtils.lerp(config.paper.t + a.gap, a.gap, theta / Math.PI);
+    const z0 = hingeHeight(theta);
     for (let i = 0; i < position.count; i++) {
       const d = rest[i * 3 + 1];
       const lift = rest[i * 3 + 2];
@@ -145,6 +144,12 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
 
   setPose(0);
   return { mesh, setPose };
+}
+
+/** §5.5 z0: height of the sheet's hinge side, on the paper when closed and on the table when open. */
+export function hingeHeight(theta: number): number {
+  const a = config.acetate;
+  return MathUtils.lerp(config.paper.t + a.gap, a.gap, theta / Math.PI);
 }
 
 /**

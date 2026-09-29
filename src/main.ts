@@ -8,10 +8,12 @@ import { createTable } from './scene/table';
 import { createLighting } from './scene/lighting';
 import { createAcetateMaterial, createRimMaterial } from './scene/acetate';
 import { createSet } from './scene/set';
+import { createTapeMaterial } from './scene/tape';
 import { createCreaseNormalTexture, createFootprintTexture, createPaperGrain } from './textures/procedural';
 import { createPlaceholderSheet } from './textures/placeholderSheet';
 import { loadScan } from './textures/loader';
 import { loadArtwork } from './textures/artwork';
+import { createTearTexture, loadKraft } from './textures/kraft';
 import { createScratchNormalTexture, createSmudgeTexture, loadWearSources } from './textures/wear';
 import { bindViewShortcuts, createViewControls } from './interaction/viewControls';
 import { createParallax } from './interaction/parallax';
@@ -68,16 +70,17 @@ renderer.setAnimationLoop(() => {
 
 /**
  * Both sets side by side. Scans come from public/assets (procedural placeholders when missing);
- * each acetate gets its own smudges and, if present, the user's drawing.
+ * each acetate gets its own smudges and, if present, the user's drawing; each tape its own torn ends.
  */
 async function addSets(): Promise<void> {
   const { assets, placeholder, layout, acetate } = config;
-  const [scanA, scanB, paintA, paintB, wear] = await Promise.all([
+  const [scanA, scanB, paintA, paintB, wear, kraft] = await Promise.all([
     loadScan(assets.sheetA, () => createPlaceholderSheet(placeholder.seedA), anisotropy),
     loadScan(assets.sheetB, () => createPlaceholderSheet(placeholder.seedB), anisotropy),
     loadArtwork(acetate.artwork[0], anisotropy),
     loadArtwork(acetate.artwork[1], anisotropy),
     loadWearSources(),
+    loadKraft(anisotropy),
   ]);
   const crease = createCreaseNormalTexture(anisotropy);
   const scratches = createScratchNormalTexture(wear, anisotropy);
@@ -89,7 +92,8 @@ async function addSets(): Promise<void> {
     const smudge = createSmudgeTexture(wear, index, anisotropy);
     const acetateMaterial = createAcetateMaterial(acetateEnvironment, { smudge, crease, scratches, paint: sheet.paint });
     acetateMaterials.push(acetateMaterial);
-    return createSet(sheet.name, sheet.x, { scan: sheet.scan, acetateMaterial, rimMaterial, footprint });
+    const tapeMaterial = createTapeMaterial(kraft, grain.normalMap, createTearTexture(index, anisotropy));
+    return createSet(sheet.name, sheet.x, { scan: sheet.scan, acetateMaterial, rimMaterial, footprint, tapeMaterial });
   });
   scene.add(...sets.map((set) => set.group));
   bindFresnelTest(sets);

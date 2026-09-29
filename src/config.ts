@@ -84,14 +84,46 @@ export const config = {
     artwork: ['assets/acetate-a.png', 'assets/acetate-b.png'],
   },
 
-  // §3, §5.4 — kraft paper tape, half on the paper and half on the acetate.
+  // §3, §5.4 — kraft paper tape across the hinge: half on the acetate's top face, the other half
+  // wrapped over the top edge onto the back of the paper (user), so the print's face stays bare
+  // when the sheet is open.
   tape: {
     w: 0.025, overhang: 0.005, color: '#b9834a', roughness: 0.95,
-    lift: 0.0001,           // above the paper top
-    seamRadius: 0.0005,     // optional cylinder over the hinge seam
-    normalRepeat: 3,        // paperGrain tiling
+    lift: 0.0001,           // tape thickness: its height over the acetate, and under the paper
+    foldSegments: 12,       // (not in spec) rows in the bend around the top edge
+    normalRepeat: 3,        // paperGrain tiles along the tape
     normalScale: 0.3,
     alphaTest: 0.5,
+    // (not in spec: §4.3 generates it) Kraft color from an ambientCG scan (Paper006, CC0), tinted
+    // so that its mean is `color`; textures.kraft's procedural noise when the file is missing.
+    kraft: 'assets/tape/Paper006_Color.jpg',
+    kraftTile: 0.1,         // (not in spec) m of tape per kraft tile
+    // (not in spec) The adhesive side, seen through the open acetate and on the flaps past the paper,
+    // looks darker and richer, like damp paper: its albedo is raised to this power.
+    adhesiveGamma: 1.25,
+    // (not in spec) Hand-torn ends: each tear wanders around its nominal end, `overhang` past the acetate.
+    tear: {
+      zone: 0.008,          // m of tape at each end that holds the tear, centred on the nominal end
+      slant: 0.0015,        // m: largest skew of a tear from one long edge of the tape to the other
+      jags: [               // jagged noise along the tear: straight runs between random knots
+        { wavelength: 0.006, amplitude: 0.0008 },
+        { wavelength: 0.0025, amplitude: 0.0004 },
+        { wavelength: 0.001, amplitude: 0.00015 },
+        { wavelength: 0.0004, amplitude: 0.00006 },
+      ],
+      // Light fibers the tear exposes: a margin up to `width` wide fading into the tape (its width
+      // wanders over `wavelength`), and loose fibers sticking out past the edge.
+      fringe: {
+        width: 0.0006, wavelength: 0.003, color: '#e2cfae', strength: 0.7,
+        fibers: { min: 15, max: 30 },          // per end
+        fiberLength: { min: 0.0001, max: 0.0004 },
+        fiberWidth: 0.00006,  // about a texel, so a strand stays unbroken
+        fiberSpreadDeg: 60,                    // off the tape's length
+      },
+      pxAlong: 128,         // texels along the tape in each end's zone
+      pxAcross: 512,        // texels across the tape
+      seeds: [31, 47],      // per set (A, B)
+    },
   },
 
   // §3 — setOffsetX = 0.030 + acetate.w / 2, so the acetates end up 60 mm apart.
@@ -270,7 +302,11 @@ export const config = {
       pxAcross: 256, pxAlong: 1024,        // (not in spec) map size: across the sheet, hinge → free edge
       seed: 5,                             // (not in spec)
     },
-    kraft: { valueVar: 0.08 },              // ±8% value variation on tape.color
+    // Fallback when the kraft scan (tape.kraft) is missing: ±8% value variation on tape.color.
+    kraft: {
+      valueVar: 0.08,
+      px: 512, octaves: 3, baseCells: 32, persistence: 0.6, seed: 9,  // (not in spec) fBm per kraftTile: 3 mm mottling and finer
+    },
     dust: { specks: { min: 20, max: 40 } },
     footprint: {
       softEdge: 0.008,      // footprintShadow: 8 mm soft edge centred on the sheet's outline, alpha 1 → 0

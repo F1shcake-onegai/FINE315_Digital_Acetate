@@ -1,11 +1,12 @@
 import {
   CustomBlending, Group, Mesh, MeshBasicMaterial, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, SrcAlphaFactor,
-  type MeshPhysicalMaterial, type Texture,
+  type MeshPhysicalMaterial, type MeshStandardMaterial, type Texture,
 } from 'three';
 import type { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { config } from '../config';
 import { createAcetate } from './acetate';
 import { createPaper } from './paper';
+import { createTape } from './tape';
 
 export interface SetParts {
   scan: Texture;
@@ -14,6 +15,7 @@ export interface SetParts {
   rimMaterial: LineMaterial;
   /** footprintShadow alpha map, shared by both decals of both sets. */
   footprint: Texture;
+  tapeMaterial: MeshStandardMaterial;
 }
 
 export interface SetHandle {
@@ -23,9 +25,9 @@ export interface SetHandle {
 }
 
 /**
- * One set, centered at x = offsetX: the contact print, its acetate and the acetate's two contact
- * shadows (tape joins in M4). Local frame: origin at the paper center on the table; the hinge
- * runs along the paper's far edge, z = −paper.h / 2.
+ * One set, centered at x = offsetX: the contact print, its acetate, the tape that hinges them and
+ * the acetate's two contact shadows. Local frame: origin at the paper center on the table; the
+ * hinge runs along the paper's far edge, z = −paper.h / 2.
  */
 export function createSet(name: string, offsetX: number, parts: SetParts): SetHandle {
   const group = new Group();
@@ -33,12 +35,14 @@ export function createSet(name: string, offsetX: number, parts: SetParts): SetHa
   group.position.x = offsetX;
 
   const acetate = createAcetate(parts.acetateMaterial, parts.rimMaterial);
+  const tape = createTape(parts.tapeMaterial, offsetX);
   const closedShadow = createFootprintShadow(parts.footprint, 1);
   const openShadow = createFootprintShadow(parts.footprint, -1);
-  group.add(createPaper(parts.scan), acetate.mesh, closedShadow, openShadow);
+  group.add(createPaper(parts.scan), acetate.mesh, tape.mesh, closedShadow, openShadow);
 
   function setAngle(theta: number, omega = 0): void {
     acetate.setPose(theta, omega);
+    tape.setPose(theta);
     const open = theta / Math.PI;
     closedShadow.material.opacity = config.contact.closedOpacity * (1 - open);
     openShadow.material.opacity = config.contact.openOpacity * open;

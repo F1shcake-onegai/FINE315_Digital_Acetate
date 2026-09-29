@@ -130,7 +130,7 @@ export function createFootprintTexture(anisotropy: number): DataTexture {
  * Tileable gradient-noise fBm on a size² grid, normalized to [0, 1]. Octave k has baseCells·2^k
  * lattice cells across the tile and amplitude persistence^k; the lattice wraps, so the tile is seamless.
  */
-function fbm(size: number, octaves: number, baseCells: number, persistence: number, rng: Rng): Float32Array {
+export function fbm(size: number, octaves: number, baseCells: number, persistence: number, rng: Rng): Float32Array {
   const out = new Float32Array(size * size);
   for (let octave = 0, cells = baseCells, amplitude = 1; octave < octaves; octave++, cells *= 2, amplitude *= persistence) {
     addGradientNoise(out, size, cells, amplitude, rng);
