@@ -3,6 +3,9 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { config } from '../config';
 import { placeCamera } from '../scene/camera';
 
+/** MouseEvent.button value of the middle button. */
+const MIDDLE_BUTTON = 1;
+
 export interface ViewControls {
   /** Call once per frame: damping, pan bounds, transmission resolution. */
   update(): void;
@@ -14,8 +17,9 @@ export interface ViewControls {
 }
 
 /**
- * §6.2: wheel or pinch dollies toward the cursor, left or right drag pans along the table, no
- * rotation. The target stays over the sets and the camera moves with it, so the angle never changes.
+ * §6.2: wheel or pinch dollies toward the cursor; middle or right drag pans along the table; no
+ * rotation. The left button and one-finger touch are left free for grabbing the acetate. The
+ * target stays over the sets and the camera moves with it, so the angle never changes.
  */
 export function createViewControls(camera: PerspectiveCamera, renderer: WebGLRenderer): ViewControls {
   const view = config.camera;
@@ -28,10 +32,15 @@ export function createViewControls(camera: PerspectiveCamera, renderer: WebGLRen
   controls.screenSpacePanning = false;  // pan along the table plane
   controls.minDistance = view.minDistance;
   controls.maxDistance = view.maxDistance;
-  controls.mouseButtons = { LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN };
-  controls.touches = { ONE: TOUCH.PAN, TWO: TOUCH.DOLLY_PAN };
+  controls.mouseButtons = { LEFT: null, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN };
+  controls.touches = { ONE: null, TWO: TOUCH.DOLLY_PAN };
   controls.update();
   controls.saveState();
+
+  // A middle press would otherwise start the browser's autoscroll mode.
+  renderer.domElement.addEventListener('mousedown', (event) => {
+    if (event.button === MIDDLE_BUTTON) event.preventDefault();
+  });
 
   return {
     update() {

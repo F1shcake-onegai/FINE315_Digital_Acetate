@@ -231,7 +231,7 @@ Keyboard
 - `OrbitControls`: `enableRotate = false`, `enablePan = true`, `enableDamping = true`, `dampingFactor = 0.08`, `zoomToCursor = true`, `screenSpacePanning = false` (pan stays on the table plane).
 - `minDistance = 0.06` (one 24 mm frame fills ~60% of the screen height), `maxDistance = 1.4` (both sets plus open acetates fit).
 - After each `controls.update()`, clamp `controls.target.x` to ±0.43 and `target.z` to [−0.51, 0.37]. Move the camera by the same delta so the tilt never changes.
-- Pan starts only on empty table (raycast miss on acetate). Drag on an acetate always flips, never pans.
+- Pan with a middle-button (or right-button) drag, or a two-finger drag on touch. The left button and one-finger touch never pan; they are reserved for grabbing the acetate (flip, later shown with a virtual hand).
 - Wheel / trackpad pinch = zoom. HTML buttons `−` `+` `Reset` top-right. Keys `+`, `−`, `0` reset. Double-click on empty table = reset.
 - Transmission resolution follows zoom: `renderer.transmissionResolutionScale` = 0.5 when distance > 0.5, 1.0 when < 0.25, lerp between. If the property does not exist in the installed three version, skip this and note it.
 
@@ -241,7 +241,7 @@ Keyboard
 
 ### 6.4 UI overlay
 
-- Bottom-left hint: "Drag the acetate to flip · Scroll to zoom · Drag the table to pan". Fades after 6 s.
+- Bottom-left hint: "Drag the acetate to flip · Scroll to zoom · Middle-drag to pan". Fades after 6 s.
 - Buttons top-right: `−` `+` `Reset`.
 - Dev toggle `W`: wall variant (see 7.2).
 

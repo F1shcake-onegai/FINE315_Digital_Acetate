@@ -28,7 +28,8 @@ npm run typecheck
 ## Controls
 
 - Scroll or pinch: zoom toward the cursor (0.06–1.4 m)
-- Drag with the left or right button: pan along the table
+- Middle-drag (or right-drag, or two fingers on touch): pan along the table
+- The left button is reserved for grabbing the acetate once it exists
 - `−` `+` `Reset` buttons, keys `-` `+` `0`, double-click: zoom and reset
 
 ## Assets

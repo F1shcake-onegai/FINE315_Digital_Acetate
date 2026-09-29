@@ -117,7 +117,7 @@ export const config = {
 
   // §6.4
   ui: {
-    hint: 'Drag the acetate to flip · Scroll to zoom · Drag the table to pan',
+    hint: 'Drag the acetate to flip · Scroll to zoom · Middle-drag to pan',
     hintFadeS: 6,
   },
 
