@@ -61,7 +61,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Layout | Sets centered at x = ±0.1495 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
 | Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
 | Renderer | WebGLRenderer, ACES filmic tone mapping followed by a Levels-style black point (implemented as `CustomToneMapping` wrapping three's ACES), sRGB output, `PCFShadowMap` (soft via `shadow.radius`; `PCFSoftShadowMap` was removed in three r186), pixel ratio = min(devicePixelRatio, 2). |
-| Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). The acetate reflects its own procedural studio instead (`config.acetateStudio`, PMREM as the material's `envMap`). It is dark overhead, so the flat sheet never veils the prints (user: "highlights only"), with softboxes 35–60° off vertical and a light floor for streaks, glints and the grazing-angle flash. Pointer parallax rotates it too. |
+| Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). The acetate reflects its own procedural studio instead (`config.acetateStudio`, PMREM as the material's `envMap`). It is dark overhead, so the flat sheet never veils the prints (user: "highlights only"). Two thin strips 18° left and right of vertical, running front to back, are caught on the waves' outer crests as long streaks. Larger softboxes 40–65° off vertical and a light floor provide glints and the grazing-angle flash. Pointer parallax rotates it too. |
 | Deformation | Acetate vertices are transformed on the CPU every frame (rest shape + hinge rotation + sag), then `computeVertexNormals()`. Grid 60×80. |
 | Scans | `public/assets/sheet-a.jpg` and `sheet-b.jpg`, same aspect as the paper (11:14), ≥ 4000 px long side. Procedural placeholder if missing. |
 | Look (locked 2026-09-29) | The tonal look the user approved. Don't change it without their approval. `RoomEnvironment` (no HDRI), key light 1.5 at (−0.6, 1.2, 0.8), hemisphere fill 0.35, exposure 0.5, black point 0.05; prints roughness 0.4, specularIntensity 0.5, envMapIntensity 0.6; table `#ede8df`, roughness 0.92. Measured at the default view (1600 × 1000, 0.9 m): print blacks ≈ 9/255, blank white frame ≈ 222, table ≈ 217. Reference render: `docs/look-reference.jpg`. Later work (the acetate, HDRIs) is tuned on top of this look, never by moving these values. These keys are tagged `locked` in `src/config.ts`. |
@@ -74,6 +74,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 
 - `public/assets/sheet-a.jpg`, `public/assets/sheet-b.jpg` — contact sheet scans.
 - `public/assets/env.hdr` — optional. A room with a window or a softbox gives longer, nicer streaks than `RoomEnvironment`.
+- `public/assets/acetate-a.png`, `acetate-b.png` — optional. The user's drawing on each acetate: white strokes on a transparent background, drawn on the scan's canvas (3300×4200, the scan as a hidden guide layer) so the strokes land over the photos. Painted on the sheet's top surface as opaque, matte white, following alpha; missing means a clear sheet.
 
 Loader rule: try the file; on 404 use the placeholder and `console.warn`.
 
@@ -94,14 +95,14 @@ Canvas sized to the paper at ≈ 11.8 px/mm (2726 × 3469 px). Draw in mm.
 | Map | Use | Recipe |
 |---|---|---|
 | paperGrain | table normalMap (not the prints: smooth RC paper) | fractal noise, 3 octaves; normal from finite differences |
-| smudge | acetate roughnessMap | base 0.06; 6–10 soft blurred ellipses up to 0.25; 2–3 fingerprint-like ridge blobs |
-| scratch | acetate normalMap | 30–60 thin random lines, 1–2 px, slight blur, height → normal |
-| crease | acetate normalMap band, top 25 mm only | 3–5 faint lines parallel to the hinge |
+| smudge | acetate roughnessMap + clearcoatRoughnessMap | Built instead from the ambientCG scans (user): fingerprints (Fingerprints001/002 roughness) shown only through 3–5 soft windows per sheet (seeded), plus a faint water-spot haze (SurfaceImperfections001 at 0.1). Was: base 0.06; 6–10 soft blurred ellipses up to 0.25; 2–3 fingerprint-like ridge blobs. |
+| scratch | acetate clearcoatNormalMap | Built instead from the ambientCG Scratches005 mask (user): thresholded at 0.35 to keep real scratches (not the faint brushing), 1 px blur, height → normal, tiled every 0.15 m. Was: 30–60 thin random lines. |
+| crease | acetate normalMap band, top 25 mm only | 3–5 faint lines parallel to the hinge (procedural; Gaussian ridges/valleys that drift slightly) |
 | kraft | tape map + roughnessMap + alphaMap | fiber noise on `#b9834a` with ±8% value variation; alpha 1 except jagged torn ends |
 | dust | optional decal | 20–40 tiny light specks, alpha |
 | footprintShadow | soft shadow decal under acetate | rectangle with 8 mm soft edge, alpha 1 → 0 |
 
-Combine scratch + crease into one normal map for the acetate.
+Scratches go on the clear coat (the glossy top surface, `clearcoatNormalMap`) and the crease on the base layer (`normalMap`), so scratches only show where light catches the surface. The spec originally combined both into one normal map.
 
 ---
 
@@ -135,11 +136,14 @@ Material — `MeshPhysicalMaterial`
 | transmission | 0.985 | just under 1: a faint milky scatter, since the user's acetate is "clear, slightly hazy" |
 | thickness | 0.0 | no refraction offset, Fresnel kept |
 | ior | 1.48 | cellulose acetate |
-| roughness | 0.12 | slightly hazy (user): softens what's seen through the sheet; the clearcoat keeps highlights crisp. Was 0.08 (clear). roughnessMap = smudge (0.04–0.25) in M3. Above ~0.1 the frames go soft. |
+| roughness | 0.12 | slightly hazy (user): softens what's seen through the sheet; the clearcoat keeps highlights crisp. Was 0.08 (clear). roughnessMap = smudge: up to 0.3 under the heaviest fingerprint (clearcoatRoughness 0.08 → 0.2 likewise). |
+| transmission blur | 0.5 | three blurs what's seen through a transmissive surface by a mip level tied to roughness (edges 3–4 px at 1600 px even when clear). A shader patch scales that level by 0.5: edges 3 px, smudges still fog. Without it the frames went soft above ~0.1 roughness. |
 | metalness | 0 | |
 | clearcoat | 1.0 | |
 | clearcoatRoughness | 0.08 | |
-| normalMap | scratch+crease | normalScale 0.05 (range 0.02–0.08) |
+| normalMap | crease | normalScale 0.05 (range 0.02–0.08) |
+| clearcoatNormalMap | scratches | clearcoatNormalScale 0.1 |
+| transmissionMap, clearcoatMap, specularIntensityMap | the user's drawing, as 1 − alpha | where there is paint the sheet is opaque, matte white (no transmission, clear coat or specular); placed over the paper area |
 | envMapIntensity | 1.0 | on the acetate's own reflection environment (`envMap`), not the room: see Environment in Decisions |
 | side | `DoubleSide` | seen from both sides mid-flip |
 | castShadow | false | a transmissive mesh casts a solid shadow; fake it instead (5.7) |
@@ -165,7 +169,7 @@ env      = smoothstep(0, 0.35, u)                   // tape holds it flat near t
 wave     = 0.0012 * (0.5 + 0.5 * sin(2π x / 0.11 + 1.3)) * env
          + 0.0004 * (0.5 + 0.5 * sin(2π x / 0.045 + 0.4)) * env
 curl     = 0.004 * max(0, u - 0.7)^2 / 0.09
-         * smoothstep(0.25, 0.5, |x| / (W/2))      // free corners lift
+         * smoothstep(0.4, 1.0, |x| / (W/2))       // free corners lift (was 0.25–0.5: all but the middle 6 cm lifted, leaving a saddle that caught light)
 zRest    = wave + curl
 
 // height off the surface: on paper when closed, on table when open

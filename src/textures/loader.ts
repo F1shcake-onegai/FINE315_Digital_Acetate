@@ -22,7 +22,8 @@ export async function loadScan(path: string, makePlaceholder: () => HTMLCanvasEl
   return texture;
 }
 
-async function loadImage(url: string): Promise<HTMLImageElement | null> {
+/** A decoded image, or null when the file is missing or unreadable (see loadScan). */
+export async function loadImage(url: string): Promise<HTMLImageElement | null> {
   const image = new Image();
   image.src = url;
   try {
@@ -33,6 +34,19 @@ async function loadImage(url: string): Promise<HTMLImageElement | null> {
   }
 }
 
+/** The image's pixels (straight alpha), scaled down so the long side is at most maxLongSide. */
+export function imagePixels(image: HTMLImageElement, maxLongSide = Infinity): ImageData {
+  const scale = Math.min(1, maxLongSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(image.naturalWidth * scale);
+  canvas.height = Math.round(image.naturalHeight * scale);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Canvas 2D is not available');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
 /** Warn about scans off the §3 format; downscale anything above the §9 texture budget. */
 function fitScan(image: HTMLImageElement, path: string): TexImageSource {
   const { scanMinPx, scanMaxPx, aspectTolerance } = config.assets;
@@ -41,7 +55,7 @@ function fitScan(image: HTMLImageElement, path: string): TexImageSource {
   const longSide = Math.max(width, height);
   const paperAspect = config.paper.w / config.paper.h;
   if (Math.abs(width / height / paperAspect - 1) > aspectTolerance) {
-    console.warn(`[assets] ${path} is ${width}×${height}, not 8×10 portrait; it will be stretched onto the paper.`);
+    console.warn(`[assets] ${path} is ${width}×${height}, not the paper's aspect; it will be stretched onto the paper.`);
   }
   if (longSide < scanMinPx) {
     console.warn(`[assets] ${path} is ${width}×${height}; scans should be at least ${scanMinPx} px on the long side.`);

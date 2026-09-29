@@ -2,6 +2,8 @@ import { ClampToEdgeWrapping, DataTexture, LinearFilter, LinearMipmapLinearFilte
 import { config } from '../config';
 
 const MM_PER_M = 1000;
+/** A Gaussian ridge is negligible beyond this many widths from its center. */
+const GAUSSIAN_REACH = 3;
 
 /** Seeded PRNG returning [0, 1). Same seed, same textures on every load. */
 export type Rng = () => number;
@@ -44,7 +46,50 @@ export interface PaperGrain {
 export function createPaperGrain(anisotropy: number): PaperGrain {
   const { size, grain } = config.textures;
   const height = fbm(size, grain.octaves, grain.baseCells, grain.persistence, createRng(grain.seed));
-  return { normalMap: dataTexture(heightToNormals(height, size, grain.slopeRms), size, anisotropy) };
+  return { normalMap: dataTexture(heightToNormals(height, size, size, grain.slopeRms), size, size, anisotropy) };
+}
+
+/**
+ * §4.3 crease: a few faint lines parallel to the hinge within the top `band` of the acetate,
+ * as narrow ridges and valleys that drift slightly along their length. Acetate UV space: columns
+ * run across the sheet, rows from the free edge (v = 0) up to the hinge (v = 1).
+ */
+export function createCreaseNormalTexture(anisotropy: number): DataTexture {
+  const { w, h } = config.acetate;
+  const crease = config.textures.crease;
+  const rng = createRng(crease.seed);
+  const widest = crease.widthMm.max / MM_PER_M;
+  const wander = crease.wanderMm / MM_PER_M;
+  const lines = Array.from({ length: randInt(rng, crease.lines) }, () => ({
+    distance: randRange(rng, { min: widest, max: crease.band - widest }),
+    width: randRange(rng, crease.widthMm) / MM_PER_M,
+    depth: randRange(rng, crease.depth) * (rng() < 0.5 ? -1 : 1),
+    cycles: randRange(rng, crease.wanderCycles),
+    phase: rng() * Math.PI * 2,
+  }));
+
+  const width = crease.pxAcross;
+  const rows = crease.pxAlong;
+  const height = new Float32Array(width * rows);
+  for (let r = 0; r < rows; r++) {
+    const d = (1 - (r + 0.5) / rows) * h;  // distance from the hinge
+    if (d > crease.band + widest * GAUSSIAN_REACH) continue;
+    for (let x = 0; x < width; x++) {
+      const u = (x + 0.5) / width;
+      let sum = 0;
+      for (const line of lines) {
+        const center = line.distance + wander * Math.sin(Math.PI * 2 * line.cycles * u + line.phase);
+        sum += line.depth * Math.exp(-(((d - center) / line.width) ** 2));
+      }
+      height[r * width + x] = sum;
+    }
+  }
+  const normals = heightToNormals(height, width, rows, crease.slopeRms, {
+    spacing: { x: w / width, y: h / rows },
+    wrap: false,
+    rmsOver: 'relief',
+  });
+  return dataTexture(normals, width, rows, anisotropy, false);
 }
 
 /**
@@ -144,27 +189,39 @@ function normalize(values: Float32Array): Float32Array {
   return values;
 }
 
+interface NormalOptions {
+  /** Pixel spacing across (x) and along (y) in one unit; slopes are per that unit. Default 1. */
+  spacing?: { x: number; y: number };
+  /** Wrap around the borders (tileable maps); otherwise clamp. Default true. */
+  wrap?: boolean;
+  /** Normalise the RMS slope over every pixel, or only where there is relief (sparse maps). */
+  rmsOver?: 'all' | 'relief';
+}
+
+/** Pixels whose slope is below this fraction of the steepest count as flat for rmsOver 'relief'. */
+const RELIEF_FRACTION = 0.05;
+
 /**
- * Tangent-space normals (RGBA8) from a tileable height field by wrapped central differences,
- * scaled so the RMS slope equals `slopeRms`. Rows run along +v (DataTexture is not flipped).
+ * Tangent-space normals (RGBA8) from a height field by central differences, scaled so the RMS
+ * slope equals `slopeRms`. Rows run along +v (DataTexture is not flipped).
  */
-function heightToNormals(height: Float32Array, size: number, slopeRms: number): Uint8Array {
-  const count = size * size;
+export function heightToNormals(height: Float32Array, width: number, rows: number, slopeRms: number, options: NormalOptions = {}): Uint8Array {
+  const { spacing = { x: 1, y: 1 }, wrap = true, rmsOver = 'all' } = options;
+  const count = width * rows;
+  const at = (i: number, n: number) => (wrap ? (i + n) % n : MathUtils.clamp(i, 0, n - 1));
   const dx = new Float32Array(count);
   const dy = new Float32Array(count);
-  let sumSq = 0;
-  for (let y = 0; y < size; y++) {
-    const row = y * size;
-    const next = ((y + 1) % size) * size;
-    const prev = ((y - 1 + size) % size) * size;
-    for (let x = 0; x < size; x++) {
+  for (let y = 0; y < rows; y++) {
+    const row = y * width;
+    const next = at(y + 1, rows) * width;
+    const prev = at(y - 1, rows) * width;
+    for (let x = 0; x < width; x++) {
       const i = row + x;
-      dx[i] = (height[row + ((x + 1) % size)] - height[row + ((x - 1 + size) % size)]) / 2;
-      dy[i] = (height[next + x] - height[prev + x]) / 2;
-      sumSq += dx[i] * dx[i] + dy[i] * dy[i];
+      dx[i] = (height[row + at(x + 1, width)] - height[row + at(x - 1, width)]) / (2 * spacing.x);
+      dy[i] = (height[next + x] - height[prev + x]) / (2 * spacing.y);
     }
   }
-  const gain = slopeRms / (Math.sqrt(sumSq / count) || 1);
+  const gain = slopeRms / (rmsSlope(dx, dy, rmsOver) || 1);
   const out = new Uint8Array(count * 4);
   for (let i = 0; i < count; i++) {
     const nx = -dx[i] * gain;
@@ -178,16 +235,34 @@ function heightToNormals(height: Float32Array, size: number, slopeRms: number): 
   return out;
 }
 
+function rmsSlope(dx: Float32Array, dy: Float32Array, over: 'all' | 'relief'): number {
+  let floor = 0;
+  if (over === 'relief') {
+    let steepest = 0;
+    for (let i = 0; i < dx.length; i++) steepest = Math.max(steepest, Math.hypot(dx[i], dy[i]));
+    floor = steepest * RELIEF_FRACTION;
+  }
+  let sumSq = 0;
+  let n = 0;
+  for (let i = 0; i < dx.length; i++) {
+    const sq = dx[i] * dx[i] + dy[i] * dy[i];
+    if (over === 'relief' && Math.sqrt(sq) < floor) continue;
+    sumSq += sq;
+    n++;
+  }
+  return Math.sqrt(sumSq / (n || 1));
+}
+
 /** [-1, 1] → byte */
 function encodeUnit(v: number): number {
   return Math.round((v * 0.5 + 0.5) * 255);
 }
 
-/** Repeating, trilinear + anisotropic: these maps get tiled and seen at grazing angles. */
-function dataTexture(data: Uint8Array, size: number, anisotropy: number): DataTexture {
-  const texture = new DataTexture(data, size, size, RGBAFormat);
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
+/** RGBA8 data map, trilinear + anisotropic: these get tiled and seen at grazing angles. */
+export function dataTexture(data: Uint8Array, width: number, rows: number, anisotropy: number, wrap = true): DataTexture {
+  const texture = new DataTexture(data, width, rows, RGBAFormat);
+  texture.wrapS = wrap ? RepeatWrapping : ClampToEdgeWrapping;
+  texture.wrapT = wrap ? RepeatWrapping : ClampToEdgeWrapping;
   texture.magFilter = LinearFilter;
   texture.minFilter = LinearMipmapLinearFilter;
   texture.generateMipmaps = true;

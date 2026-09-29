@@ -37,6 +37,9 @@ export const config = {
     // highlights crisp; transmission just under 1 adds a faint milky scatter.
     roughness: 0.12,
     transmission: 0.985,
+    // (not in spec) Scales three's roughness-driven blur of what's seen through the sheet (1 = three).
+    // three blurs even clear plastic noticeably; this keeps the prints a touch soft, not smeared.
+    transmissionBlur: 0.5,
     normalScale: 0.05,
     tint: '#ffffff',        // neutral clear (user); spec had a faint warm #f3f1ec
     wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
@@ -49,9 +52,36 @@ export const config = {
     roughnessMapRange: { min: 0.04, max: 0.25 },  // smudge map; above ~0.1 the frames go soft
     holdEnd: 0.35,          // env = smoothstep(0, holdEnd, u): the tape holds it flat near the hinge
     curlStart: 0.7,         // curl grows from u = curlStart to `curl` at the free edge
-    curlCorner: { min: 0.25, max: 0.5 },  // smoothstep over |x| / (W/2): only the free corners lift
+    // smoothstep over |x| / (W/2): only the free corners lift. Spec 0.25–0.5 lifted all but the
+    // middle 6 cm of the free edge, leaving a saddle that caught light as a bright "Λ".
+    curlCorner: { min: 0.4, max: 1.0 },
     rim: { widthPx: 1.5, color: '#ffffff', opacity: 0.35 },
     fresnelTestDeg: 80,     // M2 dev toggle: tilt the flat sheet to check the Fresnel flash
+
+    // M3 wear, from the ambientCG scans (user), composed per sheet into a few marks instead of
+    // tiling the dense scans. (not in spec: the spec generates these procedurally, §4.3)
+    wear: {
+      fingerprints: ['assets/wear/Fingerprints001_Roughness.png', 'assets/wear/Fingerprints002_Roughness.png'],
+      spots: 'assets/wear/SurfaceImperfections001_Opacity.png',
+      scratches: 'assets/wear/Scratches005_Opacity.png',
+      mapPx: 1024,          // long side of each sheet's baked smudge map
+      seeds: [11, 23],      // per sheet (A, B)
+      fingerprintTile: 0.125,                     // m of sheet per fingerprint tile: prints ≈ 16 mm
+      fingerprintWindows: { min: 3, max: 5 },     // soft windows the fingerprints show through
+      windowRadius: { min: 0.012, max: 0.028 },   // m
+      windowFeather: 0.6,                         // fraction of a window's radius that fades out
+      spotsTile: 0.2, spotsWeight: 0.1,           // faint water-spot haze everywhere
+      smudgeRoughness: 0.3, // base and clearcoat roughness scale up to this under the heaviest smudge
+      scratchTile: 0.15,    // m of sheet per scratch tile
+      scratchThreshold: 0.35, // mask level below which it's faint brushing, not a scratch: dropped
+      scratchBlurPx: 1,     // soften the scratch mask so its normals don't stipple
+      scratchSlopeRms: 0.6, // scratch normal-map strength before clearcoatNormalScale
+      scratchNormalScale: 0.1,
+    },
+
+    // The user's drawing: white strokes on a transparent PNG, drawn over the scan (same canvas),
+    // painted on the sheet's top surface as opaque matte white. Optional; missing = clear sheet.
+    artwork: ['assets/acetate-a.png', 'assets/acetate-b.png'],
   },
 
   // §3, §5.4 — kraft paper tape, half on the paper and half on the acetate.
@@ -126,21 +156,24 @@ export const config = {
   },
 
   // (not in spec) What the acetate reflects: its own small studio, so the sheet shows highlights
-  // without veiling the prints (user: "highlights only"). Straight overhead is dark: a flat sheet
-  // seen from the top-down camera only reflects within ~31° of vertical, so nothing there can grey
-  // the prints. Softboxes sit 35–60° off vertical, where M3's waves (a few degrees of tilt) and
-  // any real tilt of the sheet catch them; the light floor stands in for the table in grazing
-  // reflections. Positions are directions from the reflection probe (room units); intensities are
-  // HDR radiance.
+  // without veiling the prints (user: "highlights only"). Overhead is dark apart from two thin
+  // strips: the spec's waves tilt the sheet sideways by up to ~3.6°, swinging reflections up to
+  // ~7° left or right, so strips 18° off vertical to the left and right, running front to back,
+  // are caught on each sheet's outer wave crests as long streaks, while flat areas stay dark.
+  // Larger softboxes 40–65° off vertical light the tilted sheet (flash, glints); the light floor
+  // stands in for the table in grazing reflections. Positions are directions from the reflection
+  // probe (room units); width runs along the panel's horizontal axis; intensities are HDR radiance.
   acetateStudio: {
     roomSize: 20,
     wallColor: '#0b0b0b',
     floor: { color: '#ede8df', intensity: 1.2 },
     blur: 0.02,             // PMREM sigma
     softboxes: [
-      { position: { x: -6, y: 7, z: 5 }, width: 6, height: 4, intensity: 8 },    // key side, upper-left-front
+      { position: { x: -2.8, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },  // streak strip, left
+      { position: { x: 2.8, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },   // streak strip, right
+      { position: { x: -6, y: 7, z: 5 }, width: 6, height: 4, intensity: 8 },        // key side, upper-left-front
       { position: { x: 0, y: 8, z: -6.5 }, width: 12, height: 1.2, intensity: 10 },  // long strip over the far side
-      { position: { x: 9, y: 4, z: -1 }, width: 3, height: 6, intensity: 5 },    // right-hand fill
+      { position: { x: 9, y: 4, z: -1 }, width: 3, height: 6, intensity: 5 },        // right-hand fill
     ],
   },
 
@@ -223,9 +256,20 @@ export const config = {
       slopeRms: 0.3,        // (not in spec) RMS normal-map slope before normalScale (1 = 45°)
       seed: 7,              // (not in spec)
     },
+    // smudge and scratch are the spec's procedural recipes; the ambientCG scans in acetate.wear
+    // are used instead (user). Kept for reference.
     smudge: { base: 0.06, max: 0.25, ellipses: { min: 6, max: 10 }, ridgeBlobs: { min: 2, max: 3 } },
     scratch: { lines: { min: 30, max: 60 }, widthPx: { min: 1, max: 2 } },
-    crease: { band: 0.025, lines: { min: 3, max: 5 } },
+    crease: {
+      band: 0.025, lines: { min: 3, max: 5 },
+      widthMm: { min: 0.6, max: 1.4 },     // (not in spec) crease ridge width
+      depth: { min: 0.4, max: 1 },         // (not in spec) relative ridge heights
+      wanderMm: 0.6,                       // (not in spec) how far a crease line drifts along its length
+      wanderCycles: { min: 1, max: 3 },    // (not in spec) drifts per sheet width
+      slopeRms: 0.8,                       // (not in spec) normal strength inside the band, before normalScale
+      pxAcross: 256, pxAlong: 1024,        // (not in spec) map size: across the sheet, hinge → free edge
+      seed: 5,                             // (not in spec)
+    },
     kraft: { valueVar: 0.08 },              // ±8% value variation on tape.color
     dust: { specks: { min: 20, max: 40 } },
     footprint: {

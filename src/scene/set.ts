@@ -2,6 +2,7 @@ import {
   CustomBlending, Group, Mesh, MeshBasicMaterial, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, SrcAlphaFactor,
   type MeshPhysicalMaterial, type Texture,
 } from 'three';
+import type { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { config } from '../config';
 import { createAcetate } from './acetate';
 import { createPaper } from './paper';
@@ -9,14 +10,16 @@ import { createPaper } from './paper';
 export interface SetParts {
   scan: Texture;
   acetateMaterial: MeshPhysicalMaterial;
+  /** Shared by both sets. */
+  rimMaterial: LineMaterial;
   /** footprintShadow alpha map, shared by both decals of both sets. */
   footprint: Texture;
 }
 
 export interface SetHandle {
   group: Group;
-  /** Hinge angle of this set's acetate in radians: 0 = closed … π = open. */
-  setAngle(theta: number): void;
+  /** Hinge angle θ of this set's acetate in radians (0 closed … π open) and its angular velocity ω. */
+  setAngle(theta: number, omega?: number): void;
 }
 
 /**
@@ -29,13 +32,13 @@ export function createSet(name: string, offsetX: number, parts: SetParts): SetHa
   group.name = `set-${name}`;
   group.position.x = offsetX;
 
-  const acetate = createAcetate(parts.acetateMaterial);
+  const acetate = createAcetate(parts.acetateMaterial, parts.rimMaterial);
   const closedShadow = createFootprintShadow(parts.footprint, 1);
   const openShadow = createFootprintShadow(parts.footprint, -1);
   group.add(createPaper(parts.scan), acetate.mesh, closedShadow, openShadow);
 
-  function setAngle(theta: number): void {
-    acetate.setAngle(theta);
+  function setAngle(theta: number, omega = 0): void {
+    acetate.setPose(theta, omega);
     const open = theta / Math.PI;
     closedShadow.material.opacity = config.contact.closedOpacity * (1 - open);
     openShadow.material.opacity = config.contact.openOpacity * open;
