@@ -6,3 +6,6 @@ dist
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Original 16-bit scans (large; public/assets holds the viewer JPGs)
+scans/
