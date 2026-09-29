@@ -9,3 +9,6 @@ dist
 
 # Original 16-bit scans (large; public/assets holds the viewer JPGs)
 scans/
+
+# Downloaded CC0 textures and HDRIs, kept locally until they are wired in (see assets-cc0/SOURCES.md)
+assets-cc0/
