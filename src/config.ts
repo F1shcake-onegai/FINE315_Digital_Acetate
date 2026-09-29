@@ -81,6 +81,9 @@ export const config = {
     // exposure: spec starts at 1.0, which rendered the prints' midtones ~60 levels brighter than the
     // scans and the table near white (238/255). At 0.5 midtones sit within ~10–15 of the scans.
     keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 0.5,
+    // (not in spec) Levels black point after ACES, in display units 0–1 (0.05 ≈ 13/255); 0 = off.
+    // Clears the milky sheen over the prints' blacks; whites are unaffected.
+    blackPoint: 0.05,
     keyColor: '#ffffff',
     keyPosition: { x: -0.6, y: 1.2, z: 0.8 },  // upper-left-front, relative to the sets' center
     fillSky: '#ffffff', fillGround: '#d9d3c7',

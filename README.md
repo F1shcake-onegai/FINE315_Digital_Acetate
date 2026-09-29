@@ -53,7 +53,8 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - The prints are smooth, semi-matte resin-coated paper (Ilford Pearl, roughness 0.4) with no
   grain texture.
 - The camera looks straight down instead of tilting 20°.
-- Tone-mapping exposure is 0.5, not 1.0, which washed the prints out.
+- Tone-mapping exposure is 0.5, not 1.0, which washed the prints out. After ACES, a Levels-style
+  black point (`light.blackPoint`, 0.05) deepens the milky blacks; whites are unaffected.
 - The table is 4 m, not 2 m, so zoomed-out views never reach its edge.
 - `PCFShadowMap` and `HDRLoader`, because three r186 removed `PCFSoftShadowMap` and deprecated
   `RGBELoader`.

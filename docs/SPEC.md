@@ -60,7 +60,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Hinge | Top edge = the edge farthest from the camera. Acetate flips away from the viewer and lies open on the table above the paper. |
 | Layout | Sets centered at x = ±0.1495 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
 | Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
-| Renderer | WebGLRenderer, `ACESFilmicToneMapping`, sRGB output, `PCFShadowMap` (soft via `shadow.radius`; `PCFSoftShadowMap` was removed in three r186), pixel ratio = min(devicePixelRatio, 2). |
+| Renderer | WebGLRenderer, ACES filmic tone mapping followed by a Levels-style black point (implemented as `CustomToneMapping` wrapping three's ACES), sRGB output, `PCFShadowMap` (soft via `shadow.radius`; `PCFSoftShadowMap` was removed in three r186), pixel ratio = min(devicePixelRatio, 2). |
 | Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). |
 | Deformation | Acetate vertices are transformed on the CPU every frame (rest shape + hinge rotation + sag), then `computeVertexNormals()`. Grid 60×80. |
 | Scans | `public/assets/sheet-a.jpg` and `sheet-b.jpg`, same aspect as the paper (11:14), ≥ 4000 px long side. Procedural placeholder if missing. |
@@ -190,7 +190,7 @@ Tunables: wave amplitudes, wavelengths, curl height, sag gain 0.035, gap.
 - `scene.environment` = PMREM of `RoomEnvironment` (or the HDRI).
 - Key: `DirectionalLight` intensity 1.5 from upper-left-front (e.g. position (−0.6, 1.2, 0.8) relative to the sets' center), `castShadow`, shadow map 2048, shadow camera fitted tightly to the two sets plus the open-acetate area, `shadow.radius` 3, bias tuned to remove acne on the paper.
 - Fill: `HemisphereLight` sky `#ffffff` ground `#d9d3c7` intensity 0.35.
-- Tone mapping exposure 1.0.
+- Tone mapping exposure 0.5 (was 1.0, which washed the prints out), then a black point of 0.05 in display space (≈ 13/255): values at or below it go to black, white stays white. This clears the milky sheen over the prints' blacks.
 
 ### 5.7 Shadows and contact
 
@@ -345,7 +345,7 @@ export const config = {
              panX: 0.43, panZMin: -0.51, panZMax: 0.37 },
   flip:    { K: 140, D: 20, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
              clickPx: 4, clickMs: 200 },
-  light:   { keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 1.0 },
+  light:   { keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 0.5, blackPoint: 0.05 },
   parallax:{ envYawDeg: 3, envPitchDeg: 2, lerp: 0.08 },
   perf:    { maxPixelRatio: 2, transmissionFar: 0.5, transmissionNear: 1.0 },
 };
