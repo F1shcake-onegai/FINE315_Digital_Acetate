@@ -55,8 +55,9 @@ export const config = {
   // §3 — setOffsetX = 0.030 + acetate.w / 2, so the acetates end up 60 mm apart.
   layout: { setOffsetX: 0.1495, clearAbove: 0.30 },
 
-  // §5.1
-  table: { size: 2, color: '#ede8df', roughness: 0.92, normalRepeat: 8, normalScale: 0.1 },
+  // §5.1 — 4 m (spec: 2 m) so the top-down view never reaches the edge at max zoom-out and
+  // pan; paperGrain tiles every 0.25 m either way.
+  table: { size: 4, color: '#ede8df', roughness: 0.92, normalRepeat: 16, normalScale: 0.1 },
 
   // §3, §6.2
   camera: {
@@ -64,6 +65,7 @@ export const config = {
     // Pan bounds keep the spec's margins around the sets and the open acetates.
     panX: 0.43, panZMin: -0.51, panZMax: 0.37,
     dampingFactor: 0.08,
+    zoomStep: 1.25,         // (not in spec) distance factor per −/+ button or key press
     near: 0.01, far: 10,    // (not in spec)
   },
 
@@ -113,7 +115,10 @@ export const config = {
   },
 
   // §6.4
-  ui: { hintFadeS: 6 },
+  ui: {
+    hint: 'Drag the acetate to flip · Scroll to zoom · Drag the table to pan',
+    hintFadeS: 6,
+  },
 
   // §7.2
   wall: { tiltDeg: 8, maxLiftDeg: 110, droop: 0.15 },

@@ -11,3 +11,53 @@ body {
   height: 100%;
   touch-action: none;
 }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #2b2926;
+  user-select: none;
+}
+
+.hint {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / 0.72);
+  transition: opacity 1.2s ease;
+}
+
+.hint.faded {
+  opacity: 0;
+}
+
+.view-buttons {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.view-buttons button {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgb(0 0 0 / 0.12);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.78);
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.view-buttons button:hover {
+  background: #fff;
+}

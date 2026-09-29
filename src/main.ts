@@ -10,6 +10,9 @@ import { createSet } from './scene/set';
 import { createPaperGrain } from './textures/procedural';
 import { createPlaceholderSheet } from './textures/placeholderSheet';
 import { loadScan } from './textures/loader';
+import { bindViewShortcuts, createViewControls } from './interaction/viewControls';
+import { createParallax } from './interaction/parallax';
+import { createOverlay } from './ui/overlay';
 import { exposeDevHandle, markReady } from './dev';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene');
@@ -35,10 +38,17 @@ window.addEventListener('resize', resize);
 watchPixelRatio(resize);
 resize();
 
-exposeDevHandle({ renderer, scene, camera });
+const view = createViewControls(camera, renderer);
+bindViewShortcuts(view, canvas);
+const parallax = createParallax(scene, canvas);
+createOverlay(view);
+
+exposeDevHandle({ renderer, scene, camera }, view);
 
 let setsAdded = false;
 renderer.setAnimationLoop(() => {
+  view.update();
+  parallax.update();
   renderer.render(scene, camera);
   if (setsAdded) {
     setsAdded = false;

@@ -108,7 +108,7 @@ Combine scratch + crease into one normal map for the acetate.
 
 ### 5.1 Table
 
-- `PlaneGeometry` 2 × 2 m at y = 0, `MeshStandardMaterial`, color `#ede8df`, roughness 0.92, normalMap = paperGrain tiled 8×, normalScale 0.1. `receiveShadow`.
+- `PlaneGeometry` 4 × 4 m at y = 0 (was 2 × 2; the top-down view reached its edge at max zoom-out and pan), `MeshStandardMaterial`, color `#ede8df`, roughness 0.92, normalMap = paperGrain tiled 16× (one tile per 0.25 m), normalScale 0.1. `receiveShadow`.
 - Wall variant (later): same objects, whole world group rotated so the surface is vertical, camera looks horizontally.
 
 ### 5.2 Paper (contact sheet)
