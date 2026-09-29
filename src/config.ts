@@ -16,6 +16,9 @@ export const config = {
     // Resin-coated pearl paper (Ilford MG RC Pearl): smooth and semi-matte, no grain.
     // The spec had roughness 0.55 with a paperGrain normal and roughness map.
     w: 0.231, h: 0.294, t: 0.00025, roughness: 0.4,
+    // (not in spec) Half-strength reflection: the bright room's sheen had turned the prints'
+    // blacks grey (29/255); at 0.5 they render ~9, matching the scans. Midtones and whites stay.
+    specularIntensity: 0.5,
     envMapIntensity: 0.6,
     edgeColor: '#f4f2ee',   // side faces of the box
   },

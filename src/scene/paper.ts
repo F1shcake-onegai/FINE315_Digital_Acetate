@@ -1,14 +1,15 @@
-import { BoxGeometry, Mesh, MeshStandardMaterial, type Texture } from 'three';
+import { BoxGeometry, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, type Texture } from 'three';
 import { config } from '../config';
 
 /**
  * §5.2 contact print: a thin box resting on the table, centered on its set's origin. Only the top
  * face carries the scan; the scan's top edge lands on the hinge edge (−z). Resin-coated pearl
- * paper: a smooth, semi-matte surface with no grain.
+ * paper: a smooth, semi-matte surface with no grain. Physical material only for
+ * specularIntensity, which weakens the room's reflection without dimming the image.
  */
 export function createPaper(scan: Texture): Mesh {
-  const { w, h, t, roughness, envMapIntensity, edgeColor } = config.paper;
-  const top = new MeshStandardMaterial({ map: scan, roughness, envMapIntensity });
+  const { w, h, t, roughness, specularIntensity, envMapIntensity, edgeColor } = config.paper;
+  const top = new MeshPhysicalMaterial({ map: scan, roughness, specularIntensity, envMapIntensity });
   const edge = new MeshStandardMaterial({ color: edgeColor, roughness, envMapIntensity });
 
   // BoxGeometry material groups: +x, −x, +y (top), −y, +z, −z.

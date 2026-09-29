@@ -114,7 +114,7 @@ Combine scratch + crease into one normal map for the acetate.
 ### 5.2 Paper (contact sheet)
 
 - `BoxGeometry` 0.231 × 0.00025 × 0.294. Top face = scan. Side faces = `#f4f2ee`.
-- `MeshStandardMaterial`: map = scan (sRGB), roughness 0.4, envMapIntensity 0.6. The prints are resin-coated Ilford Pearl: smooth and semi-matte, so no grain maps. (Was roughness 0.55 with a paperGrain roughness and normal map.)
+- `MeshPhysicalMaterial` (top face; sides stay `MeshStandardMaterial`): map = scan (sRGB), roughness 0.4, specularIntensity 0.5, envMapIntensity 0.6. The prints are resin-coated Ilford Pearl: smooth and semi-matte, so no grain maps. specularIntensity 0.5 keeps the bright room's sheen from greying the blacks: they render ~9/255, like the scans. (Was `MeshStandardMaterial`, roughness 0.55, with a paperGrain roughness and normal map.)
 - Scan texture: `anisotropy = renderer.capabilities.getMaxAnisotropy()`, mipmaps on.
 - `castShadow`, `receiveShadow`.
 - Slight cupping: not needed on the paper. The acetate carries the wave.

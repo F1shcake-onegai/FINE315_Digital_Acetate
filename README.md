@@ -51,7 +51,8 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - Paper is 0.231 × 0.294 m, measured from the scans, not 8×10 in. The acetate, layout and pan
   bounds follow from it.
 - The prints are smooth, semi-matte resin-coated paper (Ilford Pearl, roughness 0.4) with no
-  grain texture.
+  grain texture, and reflect at half strength (`paper.specularIntensity` 0.5) so the room's
+  sheen doesn't turn their blacks grey.
 - The camera looks straight down instead of tilting 20°.
 - Tone-mapping exposure is 0.5, not 1.0, which washed the prints out. After ACES, a Levels-style
   black point (`light.blackPoint`, 0.05) deepens the milky blacks; whites are unaffected.
