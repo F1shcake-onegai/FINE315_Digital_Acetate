@@ -10,19 +10,20 @@
 export const config = {
   surface: 'table' as 'table' | 'wall',
 
-  // §3, §5.2 — 8×10 in portrait contact print.
+  // §3, §5.2 — the real prints, measured from the scans' film edge print (38 mm per frame);
+  // 11:14 like the scans. The spec started at 8×10 in (0.203 × 0.254).
   paper: {
-    w: 0.203, h: 0.254, t: 0.00025, roughness: 0.55,
+    w: 0.231, h: 0.294, t: 0.00025, roughness: 0.55,
     roughnessVar: 0.10,     // paperGrain remaps roughness to roughness ± roughnessVar (0.45–0.65)
     normalScale: 0.15,
     envMapIntensity: 0.6,
     edgeColor: '#f4f2ee',   // side faces of the box
   },
 
-  // §3, §5.3, §5.5 — 4% larger than the paper. Top edges aligned at the hinge;
-  // overhang 4 mm left/right, 10 mm at the bottom.
+  // §3, §5.3, §5.5 — paper + 4 mm overhang left/right + 10 mm at the bottom; top edges
+  // aligned at the hinge.
   acetate: {
-    w: 0.211, h: 0.264, segX: 60, segY: 80, gap: 0.0003,
+    w: 0.239, h: 0.304, segX: 60, segY: 80, gap: 0.0003,
     ior: 1.48, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08,
     normalScale: 0.05, tint: '#f3f1ec',
     wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
@@ -51,8 +52,8 @@ export const config = {
     alphaTest: 0.5,
   },
 
-  // §3 — the acetates end up 60 mm apart.
-  layout: { setOffsetX: 0.1355, clearAbove: 0.30 },
+  // §3 — setOffsetX = 0.030 + acetate.w / 2, so the acetates end up 60 mm apart.
+  layout: { setOffsetX: 0.1495, clearAbove: 0.30 },
 
   // §5.1
   table: { size: 2, color: '#ede8df', roughness: 0.92, normalRepeat: 8, normalScale: 0.1 },
@@ -60,7 +61,8 @@ export const config = {
   // §3, §6.2
   camera: {
     fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
-    panX: 0.40, panZMin: -0.45, panZMax: 0.35,
+    // Pan bounds keep the spec's margins around the sets and the open acetates.
+    panX: 0.43, panZMin: -0.51, panZMax: 0.37,
     dampingFactor: 0.08,
     near: 0.01, far: 10,    // (not in spec)
   },
@@ -125,14 +127,14 @@ export const config = {
 
   // §4.2 — procedural contact sheet, drawn in mm.
   placeholder: {
-    widthPx: 2400, heightPx: 3000,          // 8×10 at ≈ 11.8 px/mm
+    pxPerMm: 11.8,                          // canvas resolution; the canvas is sized to the paper
     seedA: 1, seedB: 2,                     // (not in spec) sheet B = different seed
     borderMm: 6, borderColor: '#f2f0ea',    // white easel border
     exposedColor: '#0a0a0a',                // fully exposed paper
     vignette: 0.4,                          // (not in spec) corner darkening of the exposed area, 0–1
     strips: 6, stripMm: 35, stripGapMm: 6,
-    // Spec says 6, but six frames at the 38 mm film pitch (226 mm) are wider than the 191 mm image
-    // area of a portrait 8×10; five (188 mm) fit. At 6 the easel border crops both end frames.
+    // Spec says 6, but six frames at the 38 mm film pitch (226 mm) are wider than the 219 mm image
+    // area inside the easel border; five (188 mm) fit. At 6 the border crops both end frames.
     framesPerStrip: 5,
     stripColor: '#1c1c1c',                  // film rebate
     stripJitterMm: 0.4, stripJitterDeg: 0.15,  // (not in spec) hand-laid strips

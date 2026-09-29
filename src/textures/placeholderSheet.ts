@@ -30,11 +30,11 @@ export function createPlaceholderSheet(seed: number): HTMLCanvasElement {
   const p = config.placeholder;
   const sheetW = config.paper.w * MM_PER_M;
   const sheetH = config.paper.h * MM_PER_M;
-  const pxPerMm = { x: p.widthPx / sheetW, y: p.heightPx / sheetH };
 
   const canvas = document.createElement('canvas');
-  canvas.width = p.widthPx;
-  canvas.height = p.heightPx;
+  canvas.width = Math.round(sheetW * p.pxPerMm);
+  canvas.height = Math.round(sheetH * p.pxPerMm);
+  const pxPerMm = { x: canvas.width / sheetW, y: canvas.height / sheetH };
   const ctx = context2d(canvas);
   ctx.setTransform(pxPerMm.x, 0, 0, pxPerMm.y, 0, 0);
 

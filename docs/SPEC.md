@@ -54,16 +54,16 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 |---|---|
 | Stack | Vite + TypeScript + three.js (latest). Vanilla three, no React. |
 | Units | Meters. Y is up. Table surface at y = 0. |
-| Paper | 8×10 in portrait: 0.203 × 0.254 m, thickness 0.00025 m. |
-| Acetate | 4% larger: 0.211 × 0.264 m. Top edges aligned at the hinge. Overhang 4 mm left/right, 10 mm at the bottom. |
+| Paper | The real prints, measured from the scans: 0.231 × 0.294 m portrait (11:14), thickness 0.00025 m. (Was 8×10 in, 0.203 × 0.254 m.) |
+| Acetate | Paper + overhang: 0.239 × 0.304 m. Top edges aligned at the hinge. Overhang 4 mm left/right, 10 mm at the bottom. |
 | Tape | Kraft paper tape, 0.025 m wide, 12.5 mm on paper + 12.5 mm on acetate, runs the full top edge plus 5 mm past each end. |
 | Hinge | Top edge = the edge farthest from the camera. Acetate flips away from the viewer and lies open on the table above the paper. |
-| Layout | Sets centered at x = ±0.1355 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
+| Layout | Sets centered at x = ±0.1495 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
 | Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
 | Renderer | WebGLRenderer, `ACESFilmicToneMapping`, sRGB output, `PCFShadowMap` (soft via `shadow.radius`; `PCFSoftShadowMap` was removed in three r186), pixel ratio = min(devicePixelRatio, 2). |
 | Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). |
 | Deformation | Acetate vertices are transformed on the CPU every frame (rest shape + hinge rotation + sag), then `computeVertexNormals()`. Grid 60×80. |
-| Scans | `public/assets/sheet-a.jpg` and `sheet-b.jpg`, 8×10 aspect, ≥ 4000 px long side. Procedural placeholder if missing. |
+| Scans | `public/assets/sheet-a.jpg` and `sheet-b.jpg`, same aspect as the paper (11:14), ≥ 4000 px long side. Procedural placeholder if missing. |
 
 ---
 
@@ -78,7 +78,7 @@ Loader rule: try the file; on 404 use the placeholder and `console.warn`.
 
 ### 4.2 Placeholder contact sheet (procedural, canvas 2D)
 
-Canvas 2400×3000 px (8×10). Draw in mm, scale ≈ 11.8 px/mm.
+Canvas sized to the paper at ≈ 11.8 px/mm (2726 × 3469 px). Draw in mm.
 
 - White easel border 6 mm (`#f2f0ea`).
 - Inside: fully exposed paper, near black `#0a0a0a`, faint vignette.
@@ -113,7 +113,7 @@ Combine scratch + crease into one normal map for the acetate.
 
 ### 5.2 Paper (contact sheet)
 
-- `BoxGeometry` 0.203 × 0.00025 × 0.254. Top face = scan. Side faces = `#f4f2ee`.
+- `BoxGeometry` 0.231 × 0.00025 × 0.294. Top face = scan. Side faces = `#f4f2ee`.
 - `MeshStandardMaterial`: map = scan (sRGB), roughness 0.55, roughnessMap = paperGrain (remap to 0.45–0.65), normalMap = paperGrain, normalScale 0.15, envMapIntensity 0.6.
 - Scan texture: `anisotropy = renderer.capabilities.getMaxAnisotropy()`, mipmaps on.
 - `castShadow`, `receiveShadow`.
@@ -122,7 +122,7 @@ Combine scratch + crease into one normal map for the acetate.
 ### 5.3 Acetate
 
 Geometry
-- `PlaneGeometry` 0.211 × 0.264, segments 60 × 80. Local frame: hinge along the top edge at v = 0, free edge at v = 1 (u across width, −1..1).
+- `PlaneGeometry` 0.239 × 0.304, segments 60 × 80. Local frame: hinge along the top edge at v = 0, free edge at v = 1 (u across width, −1..1).
 - Keep the flat rest positions in a copy. Rebuild positions every frame from formulas (5.5), never accumulate.
 - `frustumCulled = false` (bounds change every frame).
 
@@ -148,7 +148,7 @@ Edges
 
 ### 5.4 Tape
 
-- Two strips, each 0.0125 × (0.211 + 0.010) m.
+- Two strips, each 0.0125 × (0.239 + 0.010) m.
   - `tapePaper`: static, on the paper side of the hinge, y = paper top + 0.0001.
   - `tapeAcetate`: on the acetate side, parented to an `Object3D` at the hinge that rotates by θ. The acetate has zero sag at the hinge, so they agree.
 - Optional seam cover: cylinder radius 0.5 mm along the hinge, same material.
@@ -230,7 +230,7 @@ Keyboard
 
 - `OrbitControls`: `enableRotate = false`, `enablePan = true`, `enableDamping = true`, `dampingFactor = 0.08`, `zoomToCursor = true`, `screenSpacePanning = false` (pan stays on the table plane).
 - `minDistance = 0.06` (one 24 mm frame fills ~60% of the screen height), `maxDistance = 1.4` (both sets plus open acetates fit).
-- After each `controls.update()`, clamp `controls.target.x` to ±0.40 and `target.z` to [−0.45, 0.35]. Move the camera by the same delta so the tilt never changes.
+- After each `controls.update()`, clamp `controls.target.x` to ±0.43 and `target.z` to [−0.51, 0.37]. Move the camera by the same delta so the tilt never changes.
 - Pan starts only on empty table (raycast miss on acetate). Drag on an acetate always flips, never pans.
 - Wheel / trackpad pinch = zoom. HTML buttons `−` `+` `Reset` top-right. Keys `+`, `−`, `0` reset. Double-click on empty table = reset.
 - Transmission resolution follows zoom: `renderer.transmissionResolutionScale` = 0.5 when distance > 0.5, 1.0 when < 0.25, lerp between. If the property does not exist in the installed three version, skip this and note it.
@@ -332,17 +332,17 @@ CLAUDE.md
 ```ts
 export const config = {
   surface: 'table' as 'table' | 'wall',
-  paper:   { w: 0.203, h: 0.254, t: 0.00025, roughness: 0.55 },
-  acetate: { w: 0.211, h: 0.264, segX: 60, segY: 80, gap: 0.0003,
+  paper:   { w: 0.231, h: 0.294, t: 0.00025, roughness: 0.55 },
+  acetate: { w: 0.239, h: 0.304, segX: 60, segY: 80, gap: 0.0003,
              ior: 1.48, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08,
              normalScale: 0.05, tint: '#f3f1ec',
              wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
              wave2: { a: 0.0004, lambda: 0.045, phase: 0.4 },
              curl: 0.004, sagGain: 0.035, sagMax: 0.2 },
   tape:    { w: 0.025, overhang: 0.005, color: '#b9834a', roughness: 0.95 },
-  layout:  { setOffsetX: 0.1355, clearAbove: 0.30 },
+  layout:  { setOffsetX: 0.1495, clearAbove: 0.30 },
   camera:  { fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
-             panX: 0.40, panZMin: -0.45, panZMax: 0.35 },
+             panX: 0.43, panZMin: -0.51, panZMax: 0.37 },
   flip:    { K: 140, D: 20, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
              clickPx: 4, clickMs: 200 },
   light:   { keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 1.0 },
