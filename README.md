@@ -8,7 +8,7 @@ sheet taped along its top edge that you can grab and flip open. Built to `docs/S
 | Milestone | State |
 |---|---|
 | M0 Scaffold | done |
-| M1 Paper: scans, paper grain, key/fill light, shadows | done |
+| M1 Paper: scans, pearl-finish prints, key/fill light, shadows | done |
 | M2 Flat acetate, M3 Bend traces, M4 Tape, M5 Flip | not started; waiting on the acetate layer |
 | M6 View: zoom, pan, buttons, keys, parallax, hint | done |
 | M7 Polish | optional HDRI and this README done; dust, corner contact shadow, wall variant and perf fallbacks act on the acetate and come after it |
@@ -49,6 +49,8 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 
 - Paper is 0.231 × 0.294 m, measured from the scans, not 8×10 in. The acetate, layout and pan
   bounds follow from it.
+- The prints are smooth, semi-matte resin-coated paper (Ilford Pearl, roughness 0.4) with no
+  grain texture.
 - The camera looks straight down instead of tilting 20°.
 - Tone-mapping exposure is 0.5, not 1.0, which washed the prints out.
 - The table is 4 m, not 2 m, so zoomed-out views never reach its edge.

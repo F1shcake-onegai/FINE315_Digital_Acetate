@@ -13,9 +13,9 @@ export const config = {
   // §3, §5.2 — the real prints, measured from the scans' film edge print (38 mm per frame);
   // 11:14 like the scans. The spec started at 8×10 in (0.203 × 0.254).
   paper: {
-    w: 0.231, h: 0.294, t: 0.00025, roughness: 0.55,
-    roughnessVar: 0.10,     // paperGrain remaps roughness to roughness ± roughnessVar (0.45–0.65)
-    normalScale: 0.15,
+    // Resin-coated pearl paper (Ilford MG RC Pearl): smooth and semi-matte, no grain.
+    // The spec had roughness 0.55 with a paperGrain normal and roughness map.
+    w: 0.231, h: 0.294, t: 0.00025, roughness: 0.4,
     envMapIntensity: 0.6,
     edgeColor: '#f4f2ee',   // side faces of the box
   },

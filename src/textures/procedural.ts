@@ -33,19 +33,16 @@ export function randInt(rng: Rng, range: Range): number {
 export interface PaperGrain {
   /** Tileable tangent-space normal map. Clone it to give each use its own repeat. */
   normalMap: DataTexture;
-  /** Paper roughness in G, absolute (paper.roughness ± paper.roughnessVar): use material.roughness = 1. */
-  roughnessMap: DataTexture;
 }
 
-/** §4.3 paperGrain: 3-octave fractal noise, normals from finite differences. Shared by table, paper and tape. */
+/**
+ * §4.3 paperGrain: 3-octave fractal noise, normals from finite differences. Used by the table
+ * (the prints are smooth resin-coated paper and carry no grain).
+ */
 export function createPaperGrain(anisotropy: number): PaperGrain {
   const { size, grain } = config.textures;
-  const { roughness, roughnessVar } = config.paper;
   const height = fbm(size, grain.octaves, grain.baseCells, grain.persistence, createRng(grain.seed));
-  return {
-    normalMap: dataTexture(heightToNormals(height, size, grain.slopeRms), size, anisotropy),
-    roughnessMap: dataTexture(heightToGrey(height, roughness - roughnessVar, roughness + roughnessVar), size, anisotropy),
-  };
+  return { normalMap: dataTexture(heightToNormals(height, size, grain.slopeRms), size, anisotropy) };
 }
 
 /**
@@ -148,19 +145,6 @@ function heightToNormals(height: Float32Array, size: number, slopeRms: number): 
 /** [-1, 1] → byte */
 function encodeUnit(v: number): number {
   return Math.round((v * 0.5 + 0.5) * 255);
-}
-
-/** Height [0, 1] remapped to [lo, hi] in RGB (three reads roughness from G). */
-function heightToGrey(height: Float32Array, lo: number, hi: number): Uint8Array {
-  const out = new Uint8Array(height.length * 4);
-  for (let i = 0; i < height.length; i++) {
-    const v = Math.round((lo + (hi - lo) * height[i]) * 255);
-    out[i * 4] = v;
-    out[i * 4 + 1] = v;
-    out[i * 4 + 2] = v;
-    out[i * 4 + 3] = 255;
-  }
-  return out;
 }
 
 /** Repeating, trilinear + anisotropic: these maps get tiled and seen at grazing angles. */

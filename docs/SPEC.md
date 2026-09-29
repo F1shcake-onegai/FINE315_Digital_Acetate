@@ -92,7 +92,7 @@ Canvas sized to the paper at ≈ 11.8 px/mm (2726 × 3469 px). Draw in mm.
 
 | Map | Use | Recipe |
 |---|---|---|
-| paperGrain | paper roughnessMap + normalMap | fractal noise, 3 octaves; normal from finite differences |
+| paperGrain | table normalMap (not the prints: smooth RC paper) | fractal noise, 3 octaves; normal from finite differences |
 | smudge | acetate roughnessMap | base 0.06; 6–10 soft blurred ellipses up to 0.25; 2–3 fingerprint-like ridge blobs |
 | scratch | acetate normalMap | 30–60 thin random lines, 1–2 px, slight blur, height → normal |
 | crease | acetate normalMap band, top 25 mm only | 3–5 faint lines parallel to the hinge |
@@ -114,7 +114,7 @@ Combine scratch + crease into one normal map for the acetate.
 ### 5.2 Paper (contact sheet)
 
 - `BoxGeometry` 0.231 × 0.00025 × 0.294. Top face = scan. Side faces = `#f4f2ee`.
-- `MeshStandardMaterial`: map = scan (sRGB), roughness 0.55, roughnessMap = paperGrain (remap to 0.45–0.65), normalMap = paperGrain, normalScale 0.15, envMapIntensity 0.6.
+- `MeshStandardMaterial`: map = scan (sRGB), roughness 0.4, envMapIntensity 0.6. The prints are resin-coated Ilford Pearl: smooth and semi-matte, so no grain maps. (Was roughness 0.55 with a paperGrain roughness and normal map.)
 - Scan texture: `anisotropy = renderer.capabilities.getMaxAnisotropy()`, mipmaps on.
 - `castShadow`, `receiveShadow`.
 - Slight cupping: not needed on the paper. The acetate carries the wave.
@@ -332,7 +332,7 @@ CLAUDE.md
 ```ts
 export const config = {
   surface: 'table' as 'table' | 'wall',
-  paper:   { w: 0.231, h: 0.294, t: 0.00025, roughness: 0.55 },
+  paper:   { w: 0.231, h: 0.294, t: 0.00025, roughness: 0.4 },
   acetate: { w: 0.239, h: 0.304, segX: 60, segY: 80, gap: 0.0003,
              ior: 1.48, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08,
              normalScale: 0.05, tint: '#f3f1ec',

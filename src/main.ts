@@ -64,8 +64,8 @@ async function addSets(): Promise<void> {
     loadScan(assets.sheetB, () => createPlaceholderSheet(placeholder.seedB), anisotropy),
   ]);
   scene.add(
-    createSet('A', -layout.setOffsetX, scanA, grain),
-    createSet('B', layout.setOffsetX, scanB, grain),
+    createSet('A', -layout.setOffsetX, scanA),
+    createSet('B', layout.setOffsetX, scanB),
   );
   setsAdded = true;
 }
