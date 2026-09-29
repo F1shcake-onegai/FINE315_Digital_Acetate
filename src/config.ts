@@ -59,7 +59,7 @@ export const config = {
 
   // §3, §6.2
   camera: {
-    fov: 35, tiltDeg: 20, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
+    fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
     panX: 0.40, panZMin: -0.45, panZMax: 0.35,
     dampingFactor: 0.08,
     near: 0.01, far: 10,    // (not in spec)
@@ -74,7 +74,9 @@ export const config = {
 
   // §5.6
   light: {
-    keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 1.0,
+    // exposure: spec starts at 1.0, which rendered the prints' midtones ~60 levels brighter than the
+    // scans and the table near white (238/255). At 0.5 midtones sit within ~10–15 of the scans.
+    keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 0.5,
     keyColor: '#ffffff',
     keyPosition: { x: -0.6, y: 1.2, z: 0.8 },  // upper-left-front, relative to the sets' center
     fillSky: '#ffffff', fillGround: '#d9d3c7',

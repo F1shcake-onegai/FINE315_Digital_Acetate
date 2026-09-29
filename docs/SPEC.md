@@ -59,7 +59,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Tape | Kraft paper tape, 0.025 m wide, 12.5 mm on paper + 12.5 mm on acetate, runs the full top edge plus 5 mm past each end. |
 | Hinge | Top edge = the edge farthest from the camera. Acetate flips away from the viewer and lies open on the table above the paper. |
 | Layout | Sets centered at x = ±0.1355 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
-| Camera | PerspectiveCamera fov 35°, tilted 20° from vertical toward the viewer, looking at the center of both sets. Default distance 0.9 m. |
+| Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
 | Renderer | WebGLRenderer, `ACESFilmicToneMapping`, sRGB output, `PCFShadowMap` (soft via `shadow.radius`; `PCFSoftShadowMap` was removed in three r186), pixel ratio = min(devicePixelRatio, 2). |
 | Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). |
 | Deformation | Acetate vertices are transformed on the CPU every frame (rest shape + hinge rotation + sag), then `computeVertexNormals()`. Grid 60×80. |
@@ -341,7 +341,7 @@ export const config = {
              curl: 0.004, sagGain: 0.035, sagMax: 0.2 },
   tape:    { w: 0.025, overhang: 0.005, color: '#b9834a', roughness: 0.95 },
   layout:  { setOffsetX: 0.1355, clearAbove: 0.30 },
-  camera:  { fov: 35, tiltDeg: 20, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
+  camera:  { fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
              panX: 0.40, panZMin: -0.45, panZMax: 0.35 },
   flip:    { K: 140, D: 20, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
              clickPx: 4, clickMs: 200 },
