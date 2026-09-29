@@ -75,10 +75,11 @@ export const config = {
   // §5.6
   light: {
     keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 1.0,
+    keyColor: '#ffffff',
     keyPosition: { x: -0.6, y: 1.2, z: 0.8 },  // upper-left-front, relative to the sets' center
     fillSky: '#ffffff', fillGround: '#d9d3c7',
     shadowRadius: 3,
-    shadowBias: -0.00005,   // (not in spec) tuned against acne on the paper
+    shadowBias: -0.00005,   // (not in spec) no acne on the paper at this value
     shadowNormalBias: 0,    // (not in spec)
     shadowMargin: 0.02,     // (not in spec) padding around the fitted shadow camera
   },
@@ -116,7 +117,8 @@ export const config = {
   // §3, §4.1, §9 — paths are relative to the site root (files live in public/).
   assets: {
     sheetA: 'assets/sheet-a.jpg', sheetB: 'assets/sheet-b.jpg', env: 'assets/env.hdr',
-    scanMinPx: 4000, scanMaxPx: 4096,
+    scanMinPx: 4000, scanMaxPx: 4096,       // larger scans are downscaled to scanMaxPx
+    aspectTolerance: 0.02,  // (not in spec) warn when a scan isn't 8×10 within this fraction
   },
 
   // §4.2 — procedural contact sheet, drawn in mm.
@@ -127,17 +129,46 @@ export const config = {
     exposedColor: '#0a0a0a',                // fully exposed paper
     vignette: 0.4,                          // (not in spec) corner darkening of the exposed area, 0–1
     strips: 6, stripMm: 35, stripGapMm: 6,
-    framesPerStrip: 6,
+    // Spec says 6, but six frames at the 38 mm film pitch (226 mm) are wider than the 191 mm image
+    // area of a portrait 8×10; five (188 mm) fit. At 6 the easel border crops both end frames.
+    framesPerStrip: 5,
     stripColor: '#1c1c1c',                  // film rebate
-    sprocket: { color: '#080808', alongMm: 2.8, pitchMm: 4.75 },
-    frame: { wMm: 36, hMm: 24, gapMm: 2, rects: { min: 2, max: 4 } },
-    marks: { color: '#d8d8d8', sizeMm: 1.5 },
+    stripJitterMm: 0.4, stripJitterDeg: 0.15,  // (not in spec) hand-laid strips
+    sprocket: {
+      color: '#080808', alongMm: 2.8, pitchMm: 4.75,
+      acrossMm: 2.0,        // (not in spec) KS perforation is ≈ 2.8 × 2.0 mm
+      edgeMm: 2.0,          // (not in spec) film edge to hole
+      cornerMm: 0.5,        // (not in spec)
+    },
+    frame: {
+      wMm: 36, hMm: 24, gapMm: 2, rects: { min: 2, max: 4 },
+      cornerMm: 0.4,                        // (not in spec) film-gate corner radius
+      tone: { min: 0.3, max: 0.7 },         // (not in spec) gradient ends; 0 = print black, 1 = paper white
+      rectDelta: { min: 0.1, max: 0.35 },   // (not in spec) rectangles darker/lighter by this much
+      rectSize: { min: 0.15, max: 0.6 },    // (not in spec) fraction of the frame
+      rectSoftMm: { min: 0.1, max: 2 },     // (not in spec) edge softness
+      mottle: 0.08, mottleCells: 4,         // (not in spec) low-frequency tonal wander
+      grain: 0.08,                          // (not in spec) per-pixel film grain
+      exposureVar: 0.6,                     // (not in spec) per-frame tone curve exponent 2^±exposureVar
+    },
+    marks: {
+      color: '#d8d8d8', sizeMm: 1.5,
+      font: '"Arial Narrow", Arial, sans-serif',  // drawn bold
+      filmNames: ['MERIDIAN PAN 400', 'MERIDIAN PAN 125', 'HALDANE HP 400'],  // fake
+      nameEvery: 2,                         // (not in spec) film name every N frames
+    },
   },
 
   // §4.3 — procedural maps, generated once at startup.
   textures: {
     size: 1024,             // square, ≤ 1024²
-    grain: { octaves: 3 },
+    grain: {
+      octaves: 3,
+      baseCells: 128,       // (not in spec) noise cells across the tile in the first octave
+      persistence: 0.6,     // (not in spec) amplitude ratio between octaves; > 0.5 favors fine tooth
+      slopeRms: 0.3,        // (not in spec) RMS normal-map slope before normalScale (1 = 45°)
+      seed: 7,              // (not in spec)
+    },
     smudge: { base: 0.06, max: 0.25, ellipses: { min: 6, max: 10 }, ridgeBlobs: { min: 2, max: 3 } },
     scratch: { lines: { min: 30, max: 60 }, widthPx: { min: 1, max: 2 } },
     crease: { band: 0.025, lines: { min: 3, max: 5 } },
