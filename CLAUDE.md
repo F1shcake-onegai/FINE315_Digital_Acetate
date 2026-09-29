@@ -1,0 +1,1 @@
+Read @docs/SPEC.md before doing anything. Follow its build order and working rules.
