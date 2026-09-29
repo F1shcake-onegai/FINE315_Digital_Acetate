@@ -6,6 +6,9 @@
  * World frame: Y up, table surface at y = 0, origin = center of both sets.
  * Each set's hinge (the taped top edge) is its far edge, toward −z; the viewer is on +z.
  * "(not in spec)" marks starting values picked during implementation. Tune by eye.
+ *
+ * "locked" marks the tonal look the user approved on 2026-09-29 (docs/SPEC.md → Decisions →
+ * Look; reference render docs/look-reference.jpg). Don't change those without the user's approval.
  */
 export const config = {
   surface: 'table' as 'table' | 'wall',
@@ -15,11 +18,12 @@ export const config = {
   paper: {
     // Resin-coated pearl paper (Ilford MG RC Pearl): smooth and semi-matte, no grain.
     // The spec had roughness 0.55 with a paperGrain normal and roughness map.
-    w: 0.231, h: 0.294, t: 0.00025, roughness: 0.4,
+    w: 0.231, h: 0.294, t: 0.00025,
+    roughness: 0.4,         // locked
     // (not in spec) Half-strength reflection: the bright room's sheen had turned the prints'
     // blacks grey (29/255); at 0.5 they render ~9, matching the scans. Midtones and whites stay.
-    specularIntensity: 0.5,
-    envMapIntensity: 0.6,
+    specularIntensity: 0.5, // locked
+    envMapIntensity: 0.6,   // locked
     edgeColor: '#f4f2ee',   // side faces of the box
   },
 
@@ -60,7 +64,10 @@ export const config = {
 
   // §5.1 — 4 m (spec: 2 m) so the top-down view never reaches the edge at max zoom-out and
   // pan; paperGrain tiles every 0.25 m either way.
-  table: { size: 4, color: '#ede8df', roughness: 0.92, normalRepeat: 16, normalScale: 0.1 },
+  table: {
+    size: 4, normalRepeat: 16, normalScale: 0.1,
+    color: '#ede8df', roughness: 0.92,  // locked
+  },
 
   // §3, §6.2
   camera: {
@@ -81,15 +88,17 @@ export const config = {
 
   // §5.6
   light: {
+    shadowMap: 2048,
+    keyIntensity: 1.5, fillIntensity: 0.35,  // locked
     // exposure: spec starts at 1.0, which rendered the prints' midtones ~60 levels brighter than the
     // scans and the table near white (238/255). At 0.5 midtones sit within ~10–15 of the scans.
-    keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 0.5,
+    exposure: 0.5,          // locked
     // (not in spec) Levels black point after ACES, in display units 0–1 (0.05 ≈ 13/255); 0 = off.
     // Clears the milky sheen over the prints' blacks; whites are unaffected.
-    blackPoint: 0.05,
-    keyColor: '#ffffff',
-    keyPosition: { x: -0.6, y: 1.2, z: 0.8 },  // upper-left-front, relative to the sets' center
-    fillSky: '#ffffff', fillGround: '#d9d3c7',
+    blackPoint: 0.05,       // locked
+    keyColor: '#ffffff',    // locked
+    keyPosition: { x: -0.6, y: 1.2, z: 0.8 },  // locked; upper-left-front, relative to the sets' center
+    fillSky: '#ffffff', fillGround: '#d9d3c7',  // locked
     shadowRadius: 3,
     shadowBias: -0.00005,   // (not in spec) no acne on the paper at this value
     shadowNormalBias: 0,    // (not in spec)
@@ -105,7 +114,7 @@ export const config = {
 
   // §3
   environment: {
-    roomBlur: 0.04,         // (not in spec) PMREM sigma for RoomEnvironment
+    roomBlur: 0.04,         // locked; (not in spec) PMREM sigma for RoomEnvironment
     hdrIntensity: 1,        // (not in spec) scene.environmentIntensity when env.hdr is used
   },
 

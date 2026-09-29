@@ -64,6 +64,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). |
 | Deformation | Acetate vertices are transformed on the CPU every frame (rest shape + hinge rotation + sag), then `computeVertexNormals()`. Grid 60×80. |
 | Scans | `public/assets/sheet-a.jpg` and `sheet-b.jpg`, same aspect as the paper (11:14), ≥ 4000 px long side. Procedural placeholder if missing. |
+| Look (locked 2026-09-29) | The tonal look the user approved. Don't change it without their approval. `RoomEnvironment` (no HDRI), key light 1.5 at (−0.6, 1.2, 0.8), hemisphere fill 0.35, exposure 0.5, black point 0.05; prints roughness 0.4, specularIntensity 0.5, envMapIntensity 0.6; table `#ede8df`, roughness 0.92. Measured at the default view (1600 × 1000, 0.9 m): print blacks ≈ 9/255, blank white frame ≈ 222, table ≈ 217. Reference render: `docs/look-reference.jpg`. Later work (the acetate, HDRIs) is tuned on top of this look, never by moving these values. These keys are tagged `locked` in `src/config.ts`. |
 
 ---
 
