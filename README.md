@@ -12,7 +12,7 @@ taped along its top edge. Grabbing and flipping the acetate open comes next (M5)
 | M1 Paper: scans, pearl-finish prints, key/fill light, shadows | done |
 | M2 Flat acetate: clear, slightly hazy sheet over each print, contact shadow, Fresnel test | done |
 | M3 Bend traces: waves and corner curl, fingerprints, scratches, hinge creases, rim; the user's drawing on the sheet | done |
-| M4 Tape: kraft strip over the hinge, wrapped onto the paper's back, torn ends, follows the hinge angle | done |
+| M4 Tape: kraft strip over the hinge, wrapped onto the paper's back, torn ends, follows the hinge angle | done; hidden for now at the user's request (`tape.visible`) |
 | M5 Flip | not started |
 | M6 View: zoom, pan, buttons, keys, parallax, hint | done |
 | M7 Polish | optional HDRI and this README done; dust, corner contact shadow, wall variant and perf fallbacks act on the acetate and come after it |
@@ -44,7 +44,7 @@ npm run typecheck
 | `public/assets/env.hdr` | Optional 1K equirectangular HDRI for reflections; `RoomEnvironment` is used without it. Balance it with `environment.hdrIntensity`. |
 | `public/assets/acetate-a.png`, `acetate-b.png` | Optional drawing on each acetate (left, right): white strokes on a transparent background. Draw on the scan's 3300×4200 canvas with the scan as a hidden guide layer, then export PNG with transparency. Strokes become opaque, matte white paint on the sheet's top surface; soft edges follow the alpha. Without the file the sheet is clear. |
 | `public/assets/wear/*.png` | CC0 masks from [ambientCG](https://ambientcg.com) (Fingerprints001/002, SurfaceImperfections001, Scratches005), composed at startup into each sheet's smudges and scratches. |
-| `public/assets/tape/Paper006_Color.jpg` | Kraft color for the tape: a CC0 scan from [ambientCG](https://ambientcg.com/view?id=Paper006), tinted at load so its mean is `tape.color`. Without it the tape uses procedural kraft. |
+| `public/assets/tape/Paper006_Color.jpg` | Kraft color for the tape: a CC0 scan from [ambientCG](https://ambientcg.com/view?id=Paper006), tinted at load so its mean is `tape.color`. Without it the tape uses procedural kraft. Only loaded while `tape.visible` is true. |
 
 The current scans come from `scans/page_1_pos_1114.png` and `page_2_pos_1114.png`: 16-bit gray
 PNGs with a "Dot Gain 20%" profile, kept out of git. Convert such files through their embedded
@@ -72,11 +72,13 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - Acetate wear comes from ambientCG scans instead of the spec's procedural blobs and lines. The
   corners curl more locally than the spec's formula, which lifted all but the middle of the free
   edge.
-- The tape wraps over the top edge onto the back of the paper; the spec put half of it on the
-  paper's face, under the closed acetate. It is one strip whose fold is rebuilt from the hinge
-  angle, rather than two strips and a seam cylinder. Its color comes from an ambientCG scan
-  instead of generated noise. The ends are torn with a light fiber margin. The adhesive side,
-  which shows through the open acetate, looks darker, like damp paper.
+- The tape is hidden for now (user): `tape.visible` is false, so the sheets hinge along the top
+  edge with nothing drawn there. As built, the tape wraps over the top edge onto the back of the
+  paper; the spec put half of it on the paper's face, under the closed acetate. It is one strip
+  whose fold is rebuilt from the hinge angle, rather than two strips and a seam cylinder. Its
+  color comes from an ambientCG scan instead of generated noise. The ends are torn with a light
+  fiber margin. The adhesive side, which shows through the open acetate, looks darker, like damp
+  paper.
 - `PCFShadowMap` and `HDRLoader`, because three r186 removed `PCFSoftShadowMap` and deprecated
   `RGBELoader`.
 - The placeholder sheet uses 5 frames per strip; 6 don't fit inside its white border.

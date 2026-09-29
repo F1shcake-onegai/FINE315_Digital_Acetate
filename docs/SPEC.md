@@ -32,7 +32,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 ## 1. Hard requirements (do not change)
 
 - Desktop web app. Mouse, trackpad, keyboard.
-- Two fixed sets, side by side. Each set = one contact sheet print + one clear acetate sheet, joined along one edge by brown kraft paper tape.
+- Two fixed sets, side by side. Each set = one contact sheet print + one clear acetate sheet, joined along one edge by brown kraft paper tape. (The tape is hidden for now at the user's request, 2026-09-29: the sheets still hinge along that edge, with nothing drawn there. See Tape in Decisions.)
 - Content is static: two fixed scans. No upload or switching UI.
 - Acetate is transparent but must read as plastic: reflections, Fresnel flash at grazing angles, faint smudges and scratches, bend streaks (glare stretched along waves in the sheet).
 - User can grab the acetate and flip it about the taped edge. One axis only. Snaps to closed (0°) or open (180°).
@@ -56,7 +56,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Units | Meters. Y is up. Table surface at y = 0. |
 | Paper | The real prints, measured from the scans: 0.231 × 0.294 m portrait (11:14), thickness 0.00025 m. (Was 8×10 in, 0.203 × 0.254 m.) |
 | Acetate | Paper + overhang: 0.239 × 0.304 m. Top edges aligned at the hinge. Overhang 4 mm left/right, 10 mm at the bottom. |
-| Tape | Kraft paper tape, 0.025 m wide, runs the full top edge plus 5 mm past each end. Half lies on the acetate's top face; the other half wraps over the top edge onto the back of the paper (user, 2026-09-29), so the print's face stays bare when the sheet is open. (Was "12.5 mm on paper + 12.5 mm on acetate", which put the paper half under the closed acetate.) |
+| Tape | Kraft paper tape, 0.025 m wide, runs the full top edge plus 5 mm past each end. Half lies on the acetate's top face; the other half wraps over the top edge onto the back of the paper (user, 2026-09-29), so the print's face stays bare when the sheet is open. (Was "12.5 mm on paper + 12.5 mm on acetate", which put the paper half under the closed acetate.) **Hidden for now (user, 2026-09-29):** `tape.visible` is false, so nothing is drawn at the hinge and the kraft texture isn't loaded. The strip, its fold and its textures stay in the code; `true` brings them back. |
 | Hinge | Top edge = the edge farthest from the camera. Acetate flips away from the viewer and lies open on the table above the paper. |
 | Layout | Sets centered at x = ±0.1495 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
 | Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
@@ -152,6 +152,8 @@ Edges
 - Thin bright rim: `Line2` + `LineMaterial` (three addons), linewidth 1.5 px, color `#ffffff`, transparent, opacity 0.35, along the sheet outline. Copy its positions each frame from the deformed grid's outer ring. Set `LineMaterial.resolution` on resize.
 
 ### 5.4 Tape
+
+Hidden for now (user): with `config.tape.visible` false none of this is built or loaded. As built in M4:
 
 - One strip, 0.025 m across × (0.239 + 0.010) m long, posed on the CPU together with the acetate. Across the tape, starting from its free edge on the acetate:
   - Acetate half: on the sheet's top face, 0.1 mm above it (the tape's thickness), turning rigidly with θ about the sheet's hinge line (§5.5 z0). The acetate has zero sag at the hinge, so they agree.
@@ -271,11 +273,11 @@ As specified.
 
 ## 8. Visual acceptance ("what done looks like")
 
-- Closed, at rest: acetate reads as clear plastic. One or two soft, long highlight streaks follow the wave crests. Paper under it is fully readable, no more than ~5% darker. Bottom and side overhang show as a faint bright line. Tape is matte and fibrous, wrapped over the top edge, with torn ends.
+- Closed, at rest: acetate reads as clear plastic. One or two soft, long highlight streaks follow the wave crests. Paper under it is fully readable, no more than ~5% darker. Bottom and side overhang show as a faint bright line. Tape (when shown) is matte and fibrous, wrapped over the top edge, with torn ends.
 - Moving the mouse slides the highlights across the acetate.
 - Mid-flip (60°–120°): the sheet flashes near mirror-like; the table and paper are visible reflected in it.
 - Landing: the sheet overshoots once and settles; the far edge lags the hinge during the motion.
-- Open: acetate lies flat above the paper, slightly wavy, the tape under its hinge edge (glued side seen through the plastic), paper bare.
+- Open: acetate lies flat above the paper, slightly wavy, paper bare. With the tape shown, it lies under the sheet's hinge edge (glued side seen through the plastic).
 - Zoomed in: frames stay sharp, no shimmer or moiré on the scan, scratches and smudges become visible.
 - Two sets never touch when both are open.
 

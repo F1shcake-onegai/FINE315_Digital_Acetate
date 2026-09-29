@@ -70,7 +70,8 @@ renderer.setAnimationLoop(() => {
 
 /**
  * Both sets side by side. Scans come from public/assets (procedural placeholders when missing);
- * each acetate gets its own smudges and, if present, the user's drawing; each tape its own torn ends.
+ * each acetate gets its own smudges and, if present, the user's drawing; each tape (unless hidden)
+ * its own torn ends.
  */
 async function addSets(): Promise<void> {
   const { assets, placeholder, layout, acetate } = config;
@@ -80,7 +81,7 @@ async function addSets(): Promise<void> {
     loadArtwork(acetate.artwork[0], anisotropy),
     loadArtwork(acetate.artwork[1], anisotropy),
     loadWearSources(),
-    loadKraft(anisotropy),
+    config.tape.visible ? loadKraft(anisotropy) : null,
   ]);
   const crease = createCreaseNormalTexture(anisotropy);
   const scratches = createScratchNormalTexture(wear, anisotropy);
@@ -92,7 +93,7 @@ async function addSets(): Promise<void> {
     const smudge = createSmudgeTexture(wear, index, anisotropy);
     const acetateMaterial = createAcetateMaterial(acetateEnvironment, { smudge, crease, scratches, paint: sheet.paint });
     acetateMaterials.push(acetateMaterial);
-    const tapeMaterial = createTapeMaterial(kraft, grain.normalMap, createTearTexture(index, anisotropy));
+    const tapeMaterial = kraft && createTapeMaterial(kraft, grain.normalMap, createTearTexture(index, anisotropy));
     return createSet(sheet.name, sheet.x, { scan: sheet.scan, acetateMaterial, rimMaterial, footprint, tapeMaterial });
   });
   scene.add(...sets.map((set) => set.group));

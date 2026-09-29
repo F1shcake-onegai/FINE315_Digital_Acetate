@@ -88,6 +88,9 @@ export const config = {
   // wrapped over the top edge onto the back of the paper (user), so the print's face stays bare
   // when the sheet is open.
   tape: {
+    // Hidden (user, 2026-09-29): the sheet still hinges along the top edge, but no tape is drawn
+    // and its textures aren't loaded. true brings the kraft strip back.
+    visible: false,
     w: 0.025, overhang: 0.005, color: '#b9834a', roughness: 0.95,
     lift: 0.0001,           // tape thickness: its height over the acetate, and under the paper
     foldSegments: 12,       // (not in spec) rows in the bend around the top edge
