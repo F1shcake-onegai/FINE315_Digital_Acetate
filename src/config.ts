@@ -100,6 +100,7 @@ export const config = {
   // §3
   environment: {
     roomBlur: 0.04,         // (not in spec) PMREM sigma for RoomEnvironment
+    hdrIntensity: 1,        // (not in spec) scene.environmentIntensity when env.hdr is used
   },
 
   // §6.3

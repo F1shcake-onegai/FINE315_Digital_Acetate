@@ -3,7 +3,7 @@ import { Scene } from 'three';
 import { config } from './config';
 import { createRenderer, resizeRenderer, watchPixelRatio } from './scene/renderer';
 import { createCamera } from './scene/camera';
-import { applyRoomEnvironment } from './scene/environment';
+import { applyEnvironment } from './scene/environment';
 import { createTable } from './scene/table';
 import { createLighting } from './scene/lighting';
 import { createSet } from './scene/set';
@@ -24,7 +24,7 @@ const camera = createCamera(window.innerWidth / window.innerHeight);
 const anisotropy = renderer.capabilities.getMaxAnisotropy();
 const grain = createPaperGrain(anisotropy);
 
-applyRoomEnvironment(renderer, scene);
+applyEnvironment(renderer, scene);
 scene.add(createTable(grain), createLighting());
 
 function resize(): void {
