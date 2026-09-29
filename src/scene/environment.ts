@@ -1,4 +1,7 @@
-import { PMREMGenerator, type Scene, type WebGLRenderer } from 'three';
+import {
+  BackSide, BoxGeometry, Color, DoubleSide, Mesh, MeshBasicMaterial, PMREMGenerator, PlaneGeometry, Scene,
+  type Texture, type WebGLRenderer,
+} from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { config } from '../config';
@@ -30,4 +33,43 @@ export function applyEnvironment(renderer: WebGLRenderer, scene: Scene): void {
       pmrem.dispose();
     },
   );
+}
+
+/**
+ * What the acetate reflects (config.acetateStudio): a dark room with a light floor and a few
+ * softboxes, pre-filtered with PMREM. Keeps the flat sheet from mirroring the bright room over
+ * the prints while leaving highlights for bends, tilts and edges.
+ */
+export function createAcetateEnvironment(renderer: WebGLRenderer): Texture {
+  const studio = config.acetateStudio;
+  const scene = new Scene();
+
+  // BoxGeometry groups: +x, −x, +y, −y (floor), +z, −z; seen from inside.
+  const wall = new MeshBasicMaterial({ color: studio.wallColor, side: BackSide });
+  const floor = new MeshBasicMaterial({
+    color: new Color(studio.floor.color).multiplyScalar(studio.floor.intensity),
+    side: BackSide,
+  });
+  const size = studio.roomSize;
+  scene.add(new Mesh(new BoxGeometry(size, size, size), [wall, wall, wall, floor, wall, wall]));
+
+  for (const box of studio.softboxes) {
+    const panel = new Mesh(
+      new PlaneGeometry(box.width, box.height),
+      new MeshBasicMaterial({ color: new Color().setScalar(box.intensity), side: DoubleSide }),
+    );
+    panel.position.set(box.position.x, box.position.y, box.position.z);
+    panel.lookAt(0, 0, 0);
+    scene.add(panel);
+  }
+
+  const pmrem = new PMREMGenerator(renderer);
+  const texture = pmrem.fromScene(scene, studio.blur).texture;
+  pmrem.dispose();
+  scene.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    object.geometry.dispose();
+    for (const material of [object.material].flat()) material.dispose();
+  });
+  return texture;
 }

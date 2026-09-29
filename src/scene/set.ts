@@ -1,15 +1,86 @@
-import { Group, type Texture } from 'three';
+import {
+  CustomBlending, Group, Mesh, MeshBasicMaterial, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, SrcAlphaFactor,
+  type MeshPhysicalMaterial, type Texture,
+} from 'three';
+import { config } from '../config';
+import { createAcetate } from './acetate';
 import { createPaper } from './paper';
 
+export interface SetParts {
+  scan: Texture;
+  acetateMaterial: MeshPhysicalMaterial;
+  /** footprintShadow alpha map, shared by both decals of both sets. */
+  footprint: Texture;
+}
+
+export interface SetHandle {
+  group: Group;
+  /** Hinge angle of this set's acetate in radians: 0 = closed … π = open. */
+  setAngle(theta: number): void;
+}
+
 /**
- * One set, centered at x = offsetX: the contact print (acetate, tape and contact decals join in
- * later milestones). Local frame: origin at the paper center on the table; the hinge runs along
- * the paper's far edge, z = −paper.h / 2.
+ * One set, centered at x = offsetX: the contact print, its acetate and the acetate's two contact
+ * shadows (tape joins in M4). Local frame: origin at the paper center on the table; the hinge
+ * runs along the paper's far edge, z = −paper.h / 2.
  */
-export function createSet(name: string, offsetX: number, scan: Texture): Group {
-  const set = new Group();
-  set.name = `set-${name}`;
-  set.position.x = offsetX;
-  set.add(createPaper(scan));
-  return set;
+export function createSet(name: string, offsetX: number, parts: SetParts): SetHandle {
+  const group = new Group();
+  group.name = `set-${name}`;
+  group.position.x = offsetX;
+
+  const acetate = createAcetate(parts.acetateMaterial);
+  const closedShadow = createFootprintShadow(parts.footprint, 1);
+  const openShadow = createFootprintShadow(parts.footprint, -1);
+  group.add(createPaper(parts.scan), acetate.mesh, closedShadow, openShadow);
+
+  function setAngle(theta: number): void {
+    acetate.setAngle(theta);
+    const open = theta / Math.PI;
+    closedShadow.material.opacity = config.contact.closedOpacity * (1 - open);
+    openShadow.material.opacity = config.contact.openOpacity * open;
+  }
+
+  setAngle(0);
+  return { group, setAngle };
+}
+
+/**
+ * §5.7 soft contact shadow under the acetate's footprint: closed (side 1, over the paper) or open
+ * (side −1, past the hinge), nudged away from the key light. It is drawn in the opaque pass with
+ * hand-set blending so that it is part of what the transmissive acetate looks through; a regular
+ * transparent material would vanish under the sheet.
+ */
+function createFootprintShadow(alphaMap: Texture, side: 1 | -1): Mesh<PlaneGeometry, MeshBasicMaterial> {
+  const { w, h } = config.acetate;
+  const { softEdge } = config.textures.footprint;
+  const { lightOffset, decalLift, color } = config.contact;
+  const geometry = new PlaneGeometry(w + softEdge, h + softEdge);
+  geometry.rotateX(-Math.PI / 2);
+  const material = new MeshBasicMaterial({
+    color,
+    alphaMap,
+    depthWrite: false,
+    blending: CustomBlending,
+    blendSrc: SrcAlphaFactor,
+    blendDst: OneMinusSrcAlphaFactor,
+    // Alpha as three's NormalBlending does it (a + dst·(1 − a)), so the canvas, which three
+    // always creates with an alpha channel, stays opaque instead of showing the page through.
+    blendSrcAlpha: OneFactor,
+    blendDstAlpha: OneMinusSrcAlphaFactor,
+  });
+
+  const shadow = new Mesh(geometry, material);
+  shadow.name = side > 0 ? 'acetate-shadow-closed' : 'acetate-shadow-open';
+  shadow.renderOrder = 1;  // after the table and paper in the opaque pass
+
+  // A directional light's shadows fall away from it, along its horizontal direction.
+  const key = config.light.keyPosition;
+  const horizontal = Math.hypot(key.x, key.z);
+  shadow.position.set(
+    (-key.x / horizontal) * lightOffset,
+    decalLift,
+    -config.paper.h / 2 + (side * h) / 2 - (key.z / horizontal) * lightOffset,
+  );
+  return shadow;
 }

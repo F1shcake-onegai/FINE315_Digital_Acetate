@@ -9,7 +9,8 @@ sheet taped along its top edge that you can grab and flip open. Built to `docs/S
 |---|---|
 | M0 Scaffold | done |
 | M1 Paper: scans, pearl-finish prints, key/fill light, shadows | done |
-| M2 Flat acetate, M3 Bend traces, M4 Tape, M5 Flip | not started; waiting on the acetate layer |
+| M2 Flat acetate: clear, slightly hazy sheet over each print, contact shadow, Fresnel test | done |
+| M3 Bend traces, M4 Tape, M5 Flip | not started |
 | M6 View: zoom, pan, buttons, keys, parallax, hint | done |
 | M7 Polish | optional HDRI and this README done; dust, corner contact shadow, wall variant and perf fallbacks act on the acetate and come after it |
 
@@ -57,14 +58,20 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - Tone-mapping exposure is 0.5, not 1.0, which washed the prints out. After ACES, a Levels-style
   black point (`light.blackPoint`, 0.05) deepens the milky blacks; whites are unaffected.
 - The table is 4 m, not 2 m, so zoomed-out views never reach its edge.
+- The acetate is clear but slightly hazy (roughness 0.12, transmission 0.985) and neutral in tint.
+  It reflects its own dark studio with softboxes instead of the room, so it adds highlights
+  without greying the prints. Transmission stays at full resolution out to 1.0 m; the spec's
+  half resolution blurred the prints under the sheet.
 - `PCFShadowMap` and `HDRLoader`, because three r186 removed `PCFSoftShadowMap` and deprecated
   `RGBELoader`.
 - The placeholder sheet uses 5 frames per strip; 6 don't fit inside its white border.
 
 ## Development
 
-- On the dev server, `window.__app` exposes `renderer`, `scene`, `camera`, `config` and
-  `view(distance, x, z)`. For example, `__app.view(0.12, -0.1495, 0)` gives a close look at sheet A.
-- Source layout: `src/scene` (renderer, camera, environment, lighting, table, paper, set),
+- On the dev server, `window.__app` exposes `renderer`, `scene`, `camera`, `config`,
+  `view(distance, x, z)` and `acetateAngle(degrees)`. For example, `__app.view(0.12, -0.1495, 0)`
+  gives a close look at sheet A.
+- Dev key `F` tilts both acetates to 80° and back, to check the grazing-angle flash.
+- Source layout: `src/scene` (renderer, camera, environment, lighting, table, paper, acetate, set),
   `src/textures` (placeholder sheet, procedural maps, scan loader), `src/interaction` (view
   controls, parallax), `src/ui` (overlay).

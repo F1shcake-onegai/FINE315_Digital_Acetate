@@ -31,12 +31,17 @@ export const config = {
   // aligned at the hinge.
   acetate: {
     w: 0.239, h: 0.304, segX: 60, segY: 80, gap: 0.0003,
-    ior: 1.48, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08,
-    normalScale: 0.05, tint: '#f3f1ec',
+    ior: 1.48, clearcoat: 1, clearcoatRoughness: 0.08,
+    // Clear but slightly hazy (user): the base roughness softens what's seen through the sheet
+    // (spec 0.08 is clear; above ~0.1 the frames go soft) while the clearcoat keeps the surface
+    // highlights crisp; transmission just under 1 adds a faint milky scatter.
+    roughness: 0.12,
+    transmission: 0.985,
+    normalScale: 0.05,
+    tint: '#ffffff',        // neutral clear (user); spec had a faint warm #f3f1ec
     wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
     wave2: { a: 0.0004, lambda: 0.045, phase: 0.4 },
     curl: 0.004, sagGain: 0.035, sagMax: 0.2,
-    transmission: 1.0,
     thickness: 0.0,         // no refraction offset, Fresnel kept
     metalness: 0,
     envMapIntensity: 1.0,
@@ -110,6 +115,8 @@ export const config = {
     closedOpacity: 0.12, openOpacity: 0.10,
     lightOffset: 0.002,     // decal shift along the key light's shadow direction
     cornerBand: 0.002,      // optional dark band under the lifted free corners
+    decalLift: 0.00005,     // (not in spec) decal height above the table, under the paper top
+    color: '#000000',
   },
 
   // §3
@@ -118,14 +125,36 @@ export const config = {
     hdrIntensity: 1,        // (not in spec) scene.environmentIntensity when env.hdr is used
   },
 
+  // (not in spec) What the acetate reflects: its own small studio, so the sheet shows highlights
+  // without veiling the prints (user: "highlights only"). Straight overhead is dark: a flat sheet
+  // seen from the top-down camera only reflects within ~31° of vertical, so nothing there can grey
+  // the prints. Softboxes sit 35–60° off vertical, where M3's waves (a few degrees of tilt) and
+  // any real tilt of the sheet catch them; the light floor stands in for the table in grazing
+  // reflections. Positions are directions from the reflection probe (room units); intensities are
+  // HDR radiance.
+  acetateStudio: {
+    roomSize: 20,
+    wallColor: '#0b0b0b',
+    floor: { color: '#ede8df', intensity: 1.2 },
+    blur: 0.02,             // PMREM sigma
+    softboxes: [
+      { position: { x: -6, y: 7, z: 5 }, width: 6, height: 4, intensity: 8 },    // key side, upper-left-front
+      { position: { x: 0, y: 8, z: -6.5 }, width: 12, height: 1.2, intensity: 10 },  // long strip over the far side
+      { position: { x: 9, y: 4, z: -1 }, width: 3, height: 6, intensity: 5 },    // right-hand fill
+    ],
+  },
+
   // §6.3
   parallax: { envYawDeg: 3, envPitchDeg: 2, lerp: 0.08, fallbackTiltDeg: 1.5 },
 
   // §6.2, §9
   perf: {
     maxPixelRatio: 2, transmissionFar: 0.5, transmissionNear: 1.0,
-    transmissionFarDist: 0.5,   // camera distance above which transmission uses transmissionFar
-    transmissionNearDist: 0.25, // …below which it uses transmissionNear; lerp between
+    // Distances for the transmission scale (spec: 0.5 / 0.25 m). At the spec's half resolution the
+    // prints under the sheet turned to mush at the default 0.9 m view, so it stays full resolution
+    // out to 1.0 m and only drops toward 0.5 at max zoom-out; M7's slow-frame fallback remains.
+    transmissionFarDist: 1.4,   // camera distance at and above which transmission uses transmissionFar
+    transmissionNearDist: 1.0,  // …at and below which it uses transmissionNear; lerp between
     slowFrameMs: 20, slowForS: 2,
     degradedTransmission: 0.35, // first fallback when slow; then clearcoat → 0
   },
@@ -199,6 +228,9 @@ export const config = {
     crease: { band: 0.025, lines: { min: 3, max: 5 } },
     kraft: { valueVar: 0.08 },              // ±8% value variation on tape.color
     dust: { specks: { min: 20, max: 40 } },
-    footprint: { softEdge: 0.008 },         // footprintShadow: 8 mm soft edge, alpha 1 → 0
+    footprint: {
+      softEdge: 0.008,      // footprintShadow: 8 mm soft edge centred on the sheet's outline, alpha 1 → 0
+      pxPerMm: 2,           // (not in spec) texture resolution; ≤ 1024 px either way
+    },
   },
 };

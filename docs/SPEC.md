@@ -61,7 +61,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Layout | Sets centered at x = ±0.1495 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
 | Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
 | Renderer | WebGLRenderer, ACES filmic tone mapping followed by a Levels-style black point (implemented as `CustomToneMapping` wrapping three's ACES), sRGB output, `PCFShadowMap` (soft via `shadow.radius`; `PCFSoftShadowMap` was removed in three r186), pixel ratio = min(devicePixelRatio, 2). |
-| Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). |
+| Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). The acetate reflects its own procedural studio instead (`config.acetateStudio`, PMREM as the material's `envMap`). It is dark overhead, so the flat sheet never veils the prints (user: "highlights only"), with softboxes 35–60° off vertical and a light floor for streaks, glints and the grazing-angle flash. Pointer parallax rotates it too. |
 | Deformation | Acetate vertices are transformed on the CPU every frame (rest shape + hinge rotation + sag), then `computeVertexNormals()`. Grid 60×80. |
 | Scans | `public/assets/sheet-a.jpg` and `sheet-b.jpg`, same aspect as the paper (11:14), ≥ 4000 px long side. Procedural placeholder if missing. |
 | Look (locked 2026-09-29) | The tonal look the user approved. Don't change it without their approval. `RoomEnvironment` (no HDRI), key light 1.5 at (−0.6, 1.2, 0.8), hemisphere fill 0.35, exposure 0.5, black point 0.05; prints roughness 0.4, specularIntensity 0.5, envMapIntensity 0.6; table `#ede8df`, roughness 0.92. Measured at the default view (1600 × 1000, 0.9 m): print blacks ≈ 9/255, blank white frame ≈ 222, table ≈ 217. Reference render: `docs/look-reference.jpg`. Later work (the acetate, HDRIs) is tuned on top of this look, never by moving these values. These keys are tagged `locked` in `src/config.ts`. |
@@ -131,16 +131,16 @@ Material — `MeshPhysicalMaterial`
 
 | Property | Value | Note |
 |---|---|---|
-| color | `#f3f1ec` | faint warm-grey tint; with thickness 0 this is the only tint |
-| transmission | 1.0 | |
+| color | `#ffffff` | neutral clear (user choice; was `#f3f1ec`, which darkened the prints ~8%) |
+| transmission | 0.985 | just under 1: a faint milky scatter, since the user's acetate is "clear, slightly hazy" |
 | thickness | 0.0 | no refraction offset, Fresnel kept |
 | ior | 1.48 | cellulose acetate |
-| roughness | 0.08 | roughnessMap = smudge (0.04–0.25). Above ~0.1 the frames go soft. |
+| roughness | 0.12 | slightly hazy (user): softens what's seen through the sheet; the clearcoat keeps highlights crisp. Was 0.08 (clear). roughnessMap = smudge (0.04–0.25) in M3. Above ~0.1 the frames go soft. |
 | metalness | 0 | |
 | clearcoat | 1.0 | |
 | clearcoatRoughness | 0.08 | |
 | normalMap | scratch+crease | normalScale 0.05 (range 0.02–0.08) |
-| envMapIntensity | 1.0 | |
+| envMapIntensity | 1.0 | on the acetate's own reflection environment (`envMap`), not the room: see Environment in Decisions |
 | side | `DoubleSide` | seen from both sides mid-flip |
 | castShadow | false | a transmissive mesh casts a solid shadow; fake it instead (5.7) |
 
@@ -196,7 +196,7 @@ Tunables: wave amplitudes, wavelengths, curl height, sag gain 0.035, gap.
 ### 5.7 Shadows and contact
 
 - Paper and tape cast real shadows.
-- Acetate: two footprintShadow decals (`MeshBasicMaterial`, color `#000`, transparent, depthWrite false), one at the closed footprint, one at the open footprint. Opacity closed = 0.12 · (1 − θ/π), open = 0.10 · θ/π. Slight offset toward the key light's shadow direction (2 mm).
+- Acetate: two footprintShadow decals (`MeshBasicMaterial`, color `#000`, depthWrite false), one at the closed footprint, one at the open footprint. Opacity closed = 0.12 · (1 − θ/π), open = 0.10 · θ/π. Slight offset toward the key light's shadow direction (2 mm). They draw in the opaque pass (`transparent: false`, CustomBlending with three's NormalBlending factors including alpha, renderOrder 1), because three's transmission pass only captures opaque objects: a transparent decal would vanish under the sheet. Keeping the alpha factors matters too, since three always creates the canvas with an alpha channel.
 - Optional: darken a 2 mm band under the acetate's free corners where the curl lifts.
 
 ---
@@ -234,7 +234,7 @@ Keyboard
 - After each `controls.update()`, clamp `controls.target.x` to ±0.43 and `target.z` to [−0.51, 0.37]. Move the camera by the same delta so the tilt never changes.
 - Pan with a middle-button (or right-button) drag, or a two-finger drag on touch. The left button and one-finger touch never pan; they are reserved for grabbing the acetate (flip, later shown with a virtual hand).
 - Wheel / trackpad pinch = zoom. HTML buttons `−` `+` `Reset` top-right. Keys `+`, `−`, `0` reset. Double-click on empty table = reset.
-- Transmission resolution follows zoom: `renderer.transmissionResolutionScale` = 0.5 when distance > 0.5, 1.0 when < 0.25, lerp between. If the property does not exist in the installed three version, skip this and note it.
+- Transmission resolution follows zoom: `renderer.transmissionResolutionScale` = 1.0 up to 1.0 m, lerping to 0.5 at 1.4 m (max zoom-out). The original 0.5 above 0.5 m blurred the prints under the sheet to mush at the default 0.9 m view (edge width 7 px vs 4 px at full resolution). The §9 slow-frame fallback still applies.
 
 ### 6.3 Pointer parallax (reflections move)
 
@@ -335,8 +335,8 @@ export const config = {
   surface: 'table' as 'table' | 'wall',
   paper:   { w: 0.231, h: 0.294, t: 0.00025, roughness: 0.4 },
   acetate: { w: 0.239, h: 0.304, segX: 60, segY: 80, gap: 0.0003,
-             ior: 1.48, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.08,
-             normalScale: 0.05, tint: '#f3f1ec',
+             ior: 1.48, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.08,
+             normalScale: 0.05, tint: '#ffffff',
              wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
              wave2: { a: 0.0004, lambda: 0.045, phase: 0.4 },
              curl: 0.004, sagGain: 0.035, sagMax: 0.2 },

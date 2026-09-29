@@ -3,17 +3,18 @@ import { Scene } from 'three';
 import { config } from './config';
 import { createRenderer, resizeRenderer, watchPixelRatio } from './scene/renderer';
 import { createCamera } from './scene/camera';
-import { applyEnvironment } from './scene/environment';
+import { applyEnvironment, createAcetateEnvironment } from './scene/environment';
 import { createTable } from './scene/table';
 import { createLighting } from './scene/lighting';
+import { createAcetateMaterial } from './scene/acetate';
 import { createSet } from './scene/set';
-import { createPaperGrain } from './textures/procedural';
+import { createFootprintTexture, createPaperGrain } from './textures/procedural';
 import { createPlaceholderSheet } from './textures/placeholderSheet';
 import { loadScan } from './textures/loader';
 import { bindViewShortcuts, createViewControls } from './interaction/viewControls';
 import { createParallax } from './interaction/parallax';
 import { createOverlay } from './ui/overlay';
-import { exposeDevHandle, markReady } from './dev';
+import { bindFresnelTest, exposeDevHandle, markReady } from './dev';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene');
 if (!canvas) throw new Error('index.html is missing <canvas id="scene">');
@@ -23,6 +24,8 @@ const scene = new Scene();
 const camera = createCamera(window.innerWidth / window.innerHeight);
 const anisotropy = renderer.capabilities.getMaxAnisotropy();
 const grain = createPaperGrain(anisotropy);
+const acetateMaterial = createAcetateMaterial(createAcetateEnvironment(renderer));
+const footprint = createFootprintTexture(anisotropy);
 
 applyEnvironment(renderer, scene);
 scene.add(createTable(grain), createLighting());
@@ -49,6 +52,7 @@ let setsAdded = false;
 renderer.setAnimationLoop(() => {
   view.update();
   parallax.update();
+  acetateMaterial.envMapRotation.copy(scene.environmentRotation);  // highlights drift with the pointer too
   renderer.render(scene, camera);
   if (setsAdded) {
     setsAdded = false;
@@ -63,10 +67,12 @@ async function addSets(): Promise<void> {
     loadScan(assets.sheetA, () => createPlaceholderSheet(placeholder.seedA), anisotropy),
     loadScan(assets.sheetB, () => createPlaceholderSheet(placeholder.seedB), anisotropy),
   ]);
-  scene.add(
-    createSet('A', -layout.setOffsetX, scanA),
-    createSet('B', layout.setOffsetX, scanB),
-  );
+  const sets = [
+    createSet('A', -layout.setOffsetX, { scan: scanA, acetateMaterial, footprint }),
+    createSet('B', layout.setOffsetX, { scan: scanB, acetateMaterial, footprint }),
+  ];
+  scene.add(...sets.map((set) => set.group));
+  bindFresnelTest(sets);
   setsAdded = true;
 }
 

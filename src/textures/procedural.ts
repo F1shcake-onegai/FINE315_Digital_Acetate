@@ -1,5 +1,7 @@
-import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RGBAFormat, RepeatWrapping } from 'three';
+import { ClampToEdgeWrapping, DataTexture, LinearFilter, LinearMipmapLinearFilter, MathUtils, RGBAFormat, RepeatWrapping } from 'three';
 import { config } from '../config';
+
+const MM_PER_M = 1000;
 
 /** Seeded PRNG returning [0, 1). Same seed, same textures on every load. */
 export type Rng = () => number;
@@ -43,6 +45,40 @@ export function createPaperGrain(anisotropy: number): PaperGrain {
   const { size, grain } = config.textures;
   const height = fbm(size, grain.octaves, grain.baseCells, grain.persistence, createRng(grain.seed));
   return { normalMap: dataTexture(heightToNormals(height, size, grain.slopeRms), size, anisotropy) };
+}
+
+/**
+ * §4.3 footprintShadow: alpha 1 over the acetate's footprint, falling to 0 across a softEdge-wide
+ * band centred on its outline. The texture covers the footprint plus softEdge / 2 on every side;
+ * use it as an alphaMap (three reads G).
+ */
+export function createFootprintTexture(anisotropy: number): DataTexture {
+  const { w, h } = config.acetate;
+  const { softEdge, pxPerMm } = config.textures.footprint;
+  const planeW = w + softEdge;
+  const planeH = h + softEdge;
+  const width = Math.round(planeW * MM_PER_M * pxPerMm);
+  const height = Math.round(planeH * MM_PER_M * pxPerMm);
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    // Signed distance to the footprint's outline in meters, positive inside.
+    const dy = h / 2 - Math.abs((y + 0.5) / height - 0.5) * planeH;
+    for (let x = 0; x < width; x++) {
+      const dx = w / 2 - Math.abs((x + 0.5) / width - 0.5) * planeW;
+      const inside = dx < 0 && dy < 0 ? -Math.hypot(dx, dy) : Math.min(dx, dy);
+      const alpha = Math.round(MathUtils.smoothstep(inside, -softEdge / 2, softEdge / 2) * 255);
+      data.fill(alpha, (y * width + x) * 4, (y * width + x) * 4 + 4);
+    }
+  }
+  const texture = new DataTexture(data, width, height, RGBAFormat);
+  texture.wrapS = ClampToEdgeWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearMipmapLinearFilter;
+  texture.generateMipmaps = true;
+  texture.anisotropy = anisotropy;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 /**
