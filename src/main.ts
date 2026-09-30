@@ -8,6 +8,7 @@ import { createTable } from './scene/table';
 import { createLighting } from './scene/lighting';
 import { createAcetateMaterial, createRimMaterial } from './scene/acetate';
 import { createSet } from './scene/set';
+import { createQuality, type Quality } from './scene/quality';
 import { createTapeMaterial } from './scene/tape';
 import { createCreaseNormalTexture, createFootprintTexture, createPaperGrain } from './textures/procedural';
 import { createPlaceholderSheet } from './textures/placeholderSheet';
@@ -54,6 +55,7 @@ const view = createViewControls(camera, renderer);
 const parallax = createParallax(scene, canvas);
 const hand = createHand(canvas);
 let flip: Flip | null = null;  // once the sets exist
+let quality: Quality | null = null;  // likewise
 bindViewShortcuts(view, canvas, (event) => flip?.isOverAcetate(event) ?? false);
 createOverlay(view);
 
@@ -64,9 +66,11 @@ timer.connect(document);  // no long step after the tab was hidden
 let setsAdded = false;
 renderer.setAnimationLoop((time) => {
   timer.update(time);
+  const dt = timer.getDelta();
   view.update();
   parallax.update();
-  flip?.update(timer.getDelta());
+  flip?.update(dt);
+  quality?.update(dt);
   // The acetate's own studio turns with the room, so its highlights drift with the pointer too.
   for (const material of acetateMaterials) material.envMapRotation.copy(scene.environmentRotation);
   renderer.render(scene, camera);
@@ -106,6 +110,7 @@ async function addSets(): Promise<void> {
   });
   scene.add(...sets.map((set) => set.group));
   flip = createFlip(sets, camera, renderer.domElement, hand);
+  quality = createQuality(renderer, acetateMaterials);
   bindDevPose(flip);
   setsAdded = true;
 }

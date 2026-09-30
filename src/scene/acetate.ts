@@ -133,22 +133,23 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
 
   function setPose(theta: number, omega = 0, grip = 0, held = 0): number {
     const z0 = hingeHeight(theta);
+    // Sag (§5.5): the sheet trails its motion in one even arc, its chord angle falling back by
+    // trail · (u − pivot). The arc's strength saturates softly with ω, rather than each point being
+    // clamped, so it stays one smooth curve (the spec's clamp creased the sheet where it cut in, and
+    // its u² profile curled the free edge instead of bending the sheet).
+    const trail = a.sagMax * Math.tanh((omega * a.sagGain) / a.sagMax);
+    const pivot = grip * held;  // sag pivots at the hand while held, at the hinge once let go
     // A held sheet bends under its own weight toward the table on whichever side it leans (cos θ):
     // it hangs straight when upright and stays flat when lying down.
     const droop = -a.droop * held * Math.cos(theta);
-    const pivot = grip * held;  // sag pivots at the hand while held, at the hinge once let go
     for (let i = 0; i < position.count; i++) {
       const d = rest[i * 3 + 1];
       const lift = rest[i * 3 + 2];
       const u = d / a.h;
-      // Beyond the pivot the sheet lags; between it and the hinge it bows ahead a little.
-      // Unheld this is §5.5's −ω·sagGain·u².
-      const sag = MathUtils.clamp(-omega * a.sagGain * u * (u - pivot), -a.sagMax, a.sagMax);
-      // Between the hinge and the hand the sheet sags (0 at the hand, most at the hinge, where
-      // it peels off the paper as it's lifted); beyond the hand the free part hangs.
-      const bend = u <= grip ? grip - u : (u - grip) ** 2 / (1 - grip);
-      // No part passes through the paper (0) or the table (π).
-      const angle = MathUtils.clamp(theta + sag + droop * bend, 0, Math.PI);
+      const bent = -trail * (u - pivot) + droop * droopShape(u, grip);
+      // No part passes through the paper (0) or the table (π); where a bending sheet meets them
+      // it rounds onto the surface. At rest nothing bends and the limit is exact.
+      const angle = ontoSurface(theta + bent, Math.abs(bent) * a.contactSoftness);
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
       // |cos| keeps the bulge facing away from the surface on both sides (§5.5).
@@ -164,7 +165,8 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
       ringPositions[k * 3 + 2] = position.getZ(vertex);
     });
     rimGeometry.setPositions(ringPositions);
-    return MathUtils.clamp(theta + droop * grip, 0, Math.PI);  // the bend at u = 0
+    const leaving = trail * pivot + droop * droopShape(0, grip);
+    return ontoSurface(theta + leaving, Math.abs(leaving) * a.contactSoftness);
   }
 
   setPose(0);
@@ -175,6 +177,28 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
 export function hingeHeight(theta: number): number {
   const a = config.acetate;
   return MathUtils.lerp(config.paper.t + a.gap, a.gap, theta / Math.PI);
+}
+
+/**
+ * How far a held sheet's chord angle droops at u for a hand at `grip` (both fractions of the sheet
+ * from the hinge). Between the hinge and the hand it sags in a parabola: it leaves the hinge flatter
+ * than the line to the hand and reaches the hand steeper by as much. Past the hand the free part
+ * carries on at that slope and hangs (acetate.droopHang), so the sheet curves through the hand
+ * instead of creasing there.
+ */
+function droopShape(u: number, grip: number): number {
+  if (u <= grip) return grip - u;
+  const past = u - grip;
+  return (past * ((config.acetate.droopHang * past) / 2 - grip)) / u;
+}
+
+/**
+ * Keep a chord angle between the paper (0) and the table (π). Within `soft` of either limit the
+ * sheet eases onto the surface (a smooth blend) instead of meeting it at a corner; 0 is a hard limit.
+ */
+function ontoSurface(angle: number, soft: number): number {
+  const above = (x: number) => (x >= soft ? x : x <= -soft ? 0 : (x + soft) ** 2 / (4 * soft));
+  return Math.PI - above(Math.PI - above(angle));
 }
 
 /**

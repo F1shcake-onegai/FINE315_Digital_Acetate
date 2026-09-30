@@ -52,13 +52,20 @@ export const config = {
     wave1: { a: 0, lambda: 0.11, phase: 1.3 },
     wave2: { a: 0, lambda: 0.045, phase: 0.4 },
     curl: 0,
-    // Sag (§5.5): how far the sheet trails its motion. Spec 0.035 / 0.2 left it looking rigid in
-    // flight; the user wants it to flex a bit while lifted and dropped.
-    sagGain: 0.05, sagMax: 0.35,
+    // Sag (§5.5): how far the sheet trails its motion. The user wants it to flex a bit while flipped,
+    // but in smooth curves, never creasing ("no carvings"): it bends in one even arc whose strength
+    // saturates smoothly. sagMax is the most the free edge's chord angle trails (rad); the sheet's
+    // tangent there trails twice that. The spec clamped each point at ±0.2 on a u² profile, which
+    // creased the sheet where the clamp cut in and curled the free edge.
+    sagGain: 0.05, sagMax: 0.22,
+    // (not in spec) Where a bending sheet meets the paper or table, the contact rounds over an angle
+    // this share of the local bend, so it curves onto the surface instead of folding onto it.
+    contactSoftness: 0.5,
     // (not in spec) Held, the sheet bends under its own weight toward the table on the side it
     // leans: where it leaves the hinge its angle drops by up to this (rad), times cos θ. It peels
     // off the paper as it's lifted, hangs straight when upright, and lies flat when down.
     droop: 0.3,
+    droopHang: 2,           // (not in spec) how fast the part past the hand turns down, per sheet length
     thickness: 0.0,         // no refraction offset, Fresnel kept
     metalness: 0,
     envMapIntensity: 1.0,
@@ -254,6 +261,7 @@ export const config = {
     transmissionFarDist: 1.4,   // camera distance at and above which transmission uses transmissionFar
     transmissionNearDist: 1.0,  // …at and below which it uses transmissionNear; lerp between
     slowFrameMs: 20, slowForS: 2,
+    slowGraceS: 3,              // (not in spec) after the scene is ready, before slow frames count
     degradedTransmission: 0.35, // first fallback when slow; then clearcoat → 0
   },
 

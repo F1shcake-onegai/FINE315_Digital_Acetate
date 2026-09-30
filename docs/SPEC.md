@@ -183,19 +183,28 @@ zRest    = wave + curl
 // height off the surface: on paper when closed, on table when open
 z0       = lerp(paperThickness + gap, gap, θ / π)   // gap = 0.0003
 
-// sag: far vertices lag the hinge during motion (ω = angular velocity). Was 0.035 and ±0.2,
-// which looked rigid; the user wants the sheet to flex a bit while lifted and dropped.
-sag      = clamp(-ω * 0.05 * u * (u - u_pivot), -0.35, 0.35)
+// The user wants the sheet to flex a little while flipped, in smooth curves that never crease
+// ("no carvings"). The spec's sag, clamp(-ω * 0.035 * u², ±0.2), creased the sheet where the
+// clamp cut in and curled the free edge rather than bending the sheet.
+
+// sag: the sheet trails its motion in one even arc (ω = angular velocity). The arc's strength
+// saturates smoothly: the free edge's chord angle trails at most 0.22, its tangent twice that.
+trail    = 0.22 * tanh(ω * 0.05 / 0.22)
+sag      = -trail * (u - u_pivot)
          // u_pivot = u_grip * held. held eases to 1 while the sheet is dragged (0.12 s) and back
-         // to 0 once let go. While held the grabbed point stays put, the part beyond it lags and the
-         // part before it bows slightly ahead; unheld this is -ω * 0.05 * u².
+         // to 0 once let go. While held the arc passes through the grabbed point, which stays put.
 
 // droop: a held sheet bends under its own weight, toward the table on the side it leans
 // (cos θ): it peels off the paper as it's lifted, hangs straight when upright, lies flat when down.
 // θ is the angle of the line from the hinge to the grabbed point, which the droop leaves alone.
-droop    = -0.3 * held * cos(θ) * (u <= u_grip ? u_grip - u : (u - u_grip)² / (1 - u_grip))
+// Between hinge and hand it sags in a parabola (leaving the hinge flatter than that line,
+// reaching the hand steeper); past the hand the free part carries on and hangs (hang = 2).
+droop    = -0.3 * held * cos(θ) * (u <= u_grip ? u_grip - u
+                                  : (u - u_grip) * (hang * (u - u_grip) / 2 - u_grip) / u)
 
-θv       = clamp(θ + sag + droop, 0, π)             // never through the paper or the table
+// never through the paper (0) or the table (π); where a bending sheet meets them it rounds onto
+// the surface over an angle of 0.5 * |sag + droop| (a smooth blend) instead of folding
+θv       = ontoSurface(θ + sag + droop)
 
 // rotate about the hinge (x axis of the sheet)
 // |cos| keeps the bulge facing away from the surface on both sides.
@@ -206,7 +215,7 @@ z' = d * cos(θv) - zRest * sin(θv)     // measured from the hinge line, positi
 
 Then `positions.needsUpdate = true`, `computeVertexNormals()`, `computeBoundingSphere()` (raycasting uses the bounding sphere).
 
-Tunables: wave amplitudes, wavelengths, curl height, sag gain 0.05 and max 0.35, droop 0.3, gap. Each vertex sits at its distance from the hinge along its angle θv, so a bent sheet stretches slightly (a few percent at the strongest bend): unnoticeable in motion.
+Tunables: wave amplitudes, wavelengths, curl height, sag gain 0.05 and max 0.22, droop 0.3 and hang 2, contact softness 0.5, gap. Each vertex sits at its distance from the hinge along its angle θv, so a bent sheet stretches slightly (a few percent at the strongest bend): unnoticeable in motion.
 
 ### 5.6 Lighting
 
@@ -306,7 +315,7 @@ As specified.
 - Transmission at 0.5 scale when zoomed out.
 - Scans ≤ 4096 px, procedurals ≤ 1024 px, HDRI 1K. Consider KTX2 later, not now.
 - CPU deform: 2 × 4941 vertices per frame is fine. Do not subdivide beyond 60×80.
-- If frame time > 20 ms for 2 s: drop transmission scale to 0.35, then clearcoat to 0.
+- If frame time > 20 ms for 2 s: drop transmission scale to 0.35, then clearcoat to 0. Each step is logged to the console; slow frames count from 3 s after the scene is ready, once shaders have compiled and textures uploaded (`src/scene/quality.ts`).
 
 ---
 

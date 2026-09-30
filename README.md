@@ -14,7 +14,7 @@ hinged along its top edge that you can grab and flip open. Built to `docs/SPEC.m
 | M4 Tape: kraft strip over the hinge, wrapped onto the paper's back, torn ends, follows the hinge angle | done; hidden for now at the user's request (`tape.visible`) |
 | M5 Flip: grab and drag with a hand pointer, release snap, spring landing, sag, click, keys 1/2 | done |
 | M6 View: zoom, pan, buttons, keys, parallax, hint | done |
-| M7 Polish | optional HDRI and this README done; dust, corner contact shadow, wall variant and perf fallbacks to do |
+| M7 Polish | optional HDRI, slow-frame fallback and this README done; dust and wall variant to do; the corner contact shadow is moot now the sheet lies flat |
 
 ## Run
 
@@ -87,10 +87,10 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - Dragging: away from the table the grabbed point follows the pointer exactly (the spec's table
   projection left a lifted edge up to 7 cm from it); near closed and open the projection is kept.
   Landing damping is 16, not 20, so the sheet visibly lands and bounces once, and no part ever
-  passes through the table or paper. The sheet flexes: held, it bends under its own weight
-  (peeling off the print as it's lifted), and in flight its far part trails more than the
-  spec's sag (`acetate.droop`, `sagGain`, `sagMax`). The pointer over a sheet is a drawn hand (user) instead of
-  the grab/grabbing cursors.
+  passes through the table or paper. The sheet flexes in smooth curves that never crease
+  (user): held, it sags under its own weight (peeling off the print as it's lifted); in flight it
+  trails in one even arc (`acetate.droop`, `sagGain`, `sagMax`). The spec's clamped sag creased it.
+  The pointer over a sheet is a drawn hand (user) instead of the grab/grabbing cursors.
 - `PCFShadowMap` and `HDRLoader`, because three r186 removed `PCFSoftShadowMap` and deprecated
   `RGBELoader`.
 - The placeholder sheet uses 5 frames per strip; 6 don't fit inside its white border.
