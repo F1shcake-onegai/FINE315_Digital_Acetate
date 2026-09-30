@@ -13,7 +13,7 @@ hinged along its top edge that you can grab and flip open. Built to `docs/SPEC.m
 | M3 Bend traces: waves and corner curl (now off: flat at rest, user), fingerprints, scratches, hinge creases, rim; the user's drawing on the sheet | done |
 | M4 Tape: kraft strip over the hinge, wrapped onto the paper's back, torn ends, follows the hinge angle | done; hidden for now at the user's request (`tape.visible`) |
 | M5 Flip: grab and drag with a hand pointer, release snap, spring landing, sag, click, keys 1/2 | done |
-| M6 View: zoom, pan, buttons, keys, parallax, hint | done |
+| M6 View: zoom, pan, buttons, keys, parallax (the usage hint was removed, user) | done |
 | M7 Polish | optional HDRI, slow-frame fallback and this README done; dust and wall variant to do; the corner contact shadow is moot now the sheet lies flat |
 
 ## Run

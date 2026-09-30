@@ -21,21 +21,6 @@ body {
   user-select: none;
 }
 
-.hint {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  margin: 0;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: rgb(255 255 255 / 0.72);
-  transition: opacity 1.2s ease;
-}
-
-.hint.faded {
-  opacity: 0;
-}
-
 .view-buttons {
   position: absolute;
   top: 16px;

@@ -1,16 +1,9 @@
-import { config } from '../config';
 import type { ViewControls } from '../interaction/viewControls';
 
-const MS_PER_S = 1000;
-
-/** §6.4: bottom-left usage hint that fades after a few seconds; − + Reset buttons top-right. */
+/** §6.4: − + Reset buttons top-right. (The bottom-left usage hint was removed at the user's request.) */
 export function createOverlay(view: ViewControls): void {
   const overlay = document.createElement('div');
   overlay.className = 'overlay';
-
-  const hint = document.createElement('p');
-  hint.className = 'hint';
-  hint.textContent = config.ui.hint;
 
   const buttons = document.createElement('div');
   buttons.className = 'view-buttons';
@@ -28,7 +21,6 @@ export function createOverlay(view: ViewControls): void {
     buttons.append(button);
   }
 
-  overlay.append(hint, buttons);
+  overlay.append(buttons);
   document.body.append(overlay);
-  window.setTimeout(() => hint.classList.add('faded'), config.ui.hintFadeS * MS_PER_S);
 }

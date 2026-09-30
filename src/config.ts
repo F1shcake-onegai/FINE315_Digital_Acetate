@@ -265,10 +265,8 @@ export const config = {
     degradedTransmission: 0.35, // first fallback when slow; then clearcoat → 0
   },
 
-  // §6.4
+  // §6.4 (the bottom-left usage hint was removed at the user's request)
   ui: {
-    hint: 'Drag the acetate to flip · Scroll to zoom · Middle-drag to pan',
-    hintFadeS: 6,
     // (not in spec) The hand-shaped pointer (user) over the acetates, src/ui/cursors/*.svg.
     hand: {
       sizePx: 56,

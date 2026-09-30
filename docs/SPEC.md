@@ -280,7 +280,7 @@ Touch
 
 ### 6.4 UI overlay
 
-- Bottom-left hint: "Drag the acetate to flip · Scroll to zoom · Middle-drag to pan". Fades after 6 s.
+- Bottom-left hint: removed at the user's request (2026-09-30). Was "Drag the acetate to flip · Scroll to zoom · Middle-drag to pan", fading after 6 s.
 - Buttons top-right: `−` `+` `Reset`.
 - Dev toggle `W`: wall variant (see 7.2).
 
