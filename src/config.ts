@@ -37,9 +37,13 @@ export const config = {
     // highlights crisp; transmission just under 1 adds a faint milky scatter.
     roughness: 0.12,
     transmission: 0.985,
-    // (not in spec) Scales three's roughness-driven blur of what's seen through the sheet (1 = three).
-    // three blurs even clear plastic noticeably; this keeps the prints a touch soft, not smeared.
-    transmissionBlur: 0.5,
+    // (not in spec) What's seen through the sheet. Slightly hazy plastic lying on a print passes it
+    // sharp and scatters a little light into a soft glow, so instead of three's roughness-driven
+    // blur (0.5 of it left the prints ~3 px soft: too blurry, user) the print is sampled sharp and
+    // a blurred copy is mixed in: `share` of it everywhere, rising by `smudgeShare` under the
+    // heaviest fingerprint, which reads milky. `glowLod` is the glow's width, as a mip level of the
+    // screen-sized transmission buffer (2 = a quarter resolution).
+    haze: { share: 0.15, smudgeShare: 0.45, glowLod: 2 },
     normalScale: 0.05,
     tint: '#ffffff',        // neutral clear (user); spec had a faint warm #f3f1ec
     wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },

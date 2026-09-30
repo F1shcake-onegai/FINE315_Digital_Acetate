@@ -59,30 +59,38 @@ export function createAcetateMaterial(envMap: Texture, maps: AcetateMaps): MeshP
     envMapIntensity: a.envMapIntensity,
     side: DoubleSide,  // seen from both sides mid-flip
   });
-  scaleTransmissionBlur(material, a.transmissionBlur);
+  hazeTransmission(material);
   return material;
 }
 
-/** three's blur of what's seen through a transmissive surface: a mip level from the roughness. */
-const TRANSMISSION_LOD = 'log2( transmissionSamplerSize.x ) * applyIorToRoughness( roughness, ior )';
+/** How three samples what's seen through a transmissive surface: blurred by a mip level from the roughness. */
+const TRANSMISSION_SAMPLE = 'return textureBicubic( transmissionSamplerMap, fragCoord.xy, lod );';
 
 /**
- * Scale three's transmission blur by `factor`. three ties it to the surface roughness, which blurs
- * even clear plastic (edges 3 px wide at 1600 px); this keeps glossy highlights and smudge fog
- * but lets the prints read sharper through the sheet. Warns and leaves three's blur if the
- * shader chunk no longer contains the expression.
+ * See the print through the sheet as hazy plastic shows it: sharp, plus a soft glow of scattered
+ * light (config.acetate.haze). three blurs instead, by a mip level tied to the surface roughness,
+ * which smears the prints even through clean plastic (edges ~3 px wide at 1600 px). The smudge map
+ * raises the roughness toward wear.smudgeRoughness under fingerprints; that raises the glow's
+ * share, so they read milky. Reflections keep the full roughness. Warns and leaves three's blur if
+ * the shader chunk no longer has the line.
  */
-function scaleTransmissionBlur(material: MeshPhysicalMaterial, factor: number): void {
+function hazeTransmission(material: MeshPhysicalMaterial): void {
+  const { roughness, haze, wear } = config.acetate;
   const chunk = ShaderChunk.transmission_pars_fragment;
-  if (!chunk.includes(TRANSMISSION_LOD)) {
-    console.warn('[acetate] three.js transmission chunk changed; transmission blur left at three\'s default.');
+  if (!chunk.includes(TRANSMISSION_SAMPLE)) {
+    console.warn('[acetate] three.js transmission chunk changed; what is seen through the sheet keeps three\'s blur.');
     return;
   }
-  const patched = chunk.replace(TRANSMISSION_LOD, `${TRANSMISSION_LOD} * ${factor.toFixed(4)}`);
+  const glsl = (v: number) => v.toFixed(4);
+  const smudge = `clamp( ( roughness - ${glsl(roughness)} ) / ${glsl(wear.smudgeRoughness - roughness)}, 0.0, 1.0 )`;
+  const patched = chunk.replace(TRANSMISSION_SAMPLE, `return mix(
+			textureLod( transmissionSamplerMap, fragCoord.xy, 0.0 ),
+			textureLod( transmissionSamplerMap, fragCoord.xy, ${glsl(haze.glowLod)} ),
+			${glsl(haze.share)} + ${glsl(haze.smudgeShare)} * ${smudge} );`);
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace('#include <transmission_pars_fragment>', patched);
   };
-  material.customProgramCacheKey = () => `acetate-transmission-blur-${factor}`;
+  material.customProgramCacheKey = () => `acetate-haze-${haze.share}-${haze.smudgeShare}-${haze.glowLod}`;
 }
 
 /** §5.3 rim: a thin bright line along the sheet's outline, shared by both sheets. Keep .resolution at the canvas' CSS size. */

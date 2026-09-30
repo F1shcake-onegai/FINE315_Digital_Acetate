@@ -68,8 +68,9 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - The acetate is clear but slightly hazy (roughness 0.12, transmission 0.985) and neutral in tint.
   It reflects its own dark studio with softboxes instead of the room, so it adds highlights
   without greying the prints. Transmission stays at full resolution out to 1.0 m; the spec's
-  half resolution blurred the prints under the sheet. A small shader patch halves three's
-  roughness-driven blur of what's seen through the sheet (`acetate.transmissionBlur`).
+  half resolution blurred the prints under the sheet. The print is seen through the sheet sharp,
+  with a faint glow mixed in for softness (`acetate.haze`), instead of three's roughness-driven
+  blur, which smeared it; fingerprints raise the glow, so they read milky.
 - Acetate wear comes from ambientCG scans instead of the spec's procedural blobs and lines. The
   corners curl more locally than the spec's formula, which lifted all but the middle of the free
   edge.

@@ -136,8 +136,8 @@ Material — `MeshPhysicalMaterial`
 | transmission | 0.985 | just under 1: a faint milky scatter, since the user's acetate is "clear, slightly hazy" |
 | thickness | 0.0 | no refraction offset, Fresnel kept |
 | ior | 1.48 | cellulose acetate |
-| roughness | 0.12 | slightly hazy (user): softens what's seen through the sheet; the clearcoat keeps highlights crisp. Was 0.08 (clear). roughnessMap = smudge: up to 0.3 under the heaviest fingerprint (clearcoatRoughness 0.08 → 0.2 likewise). |
-| transmission blur | 0.5 | three blurs what's seen through a transmissive surface by a mip level tied to roughness (edges 3–4 px at 1600 px even when clear). A shader patch scales that level by 0.5: edges 3 px, smudges still fog. Without it the frames went soft above ~0.1 roughness. |
+| roughness | 0.12 | slightly hazy (user): broadens the base layer's sheen (what's seen through the sheet is set by the haze row below); the clearcoat keeps highlights crisp. Was 0.08 (clear). roughnessMap = smudge: up to 0.3 under the heaviest fingerprint (clearcoatRoughness 0.08 → 0.2 likewise). |
+| haze (what's seen through) | glow 15%, up to 60% under fingerprints; glow at mip 2 | Replaces three's blur of what's seen through a transmissive surface, a mip level tied to roughness, which smeared the prints even through clean plastic (at 0.5 of it: edges 3 px at 1600 px, too blurry, user). Slightly hazy plastic lying on a print passes it sharp and scatters a little light into a soft glow. So a shader patch samples the print sharp and mixes in a quarter-resolution copy: 15% everywhere for a touch of softness, rising with the smudge map's roughness so fingerprints read milky rather than smeared. Reflections keep the full roughness. |
 | metalness | 0 | |
 | clearcoat | 1.0 | |
 | clearcoatRoughness | 0.08 | |
