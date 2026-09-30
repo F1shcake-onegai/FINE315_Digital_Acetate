@@ -59,8 +59,11 @@ export function createViewControls(camera: PerspectiveCamera, renderer: WebGLRen
   };
 }
 
-/** §6.2 keys: + and − zoom, 0 resets. Double-clicking the table resets too. */
-export function bindViewShortcuts(view: ViewControls, canvas: HTMLCanvasElement): void {
+/**
+ * §6.2 keys: + and − zoom, 0 resets. Double-clicking the table resets too, but not where
+ * `onAcetate` says the pointer is over an acetate: clicks there flip it.
+ */
+export function bindViewShortcuts(view: ViewControls, canvas: HTMLCanvasElement, onAcetate: (event: MouseEvent) => boolean): void {
   window.addEventListener('keydown', (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;  // leave browser zoom alone
     switch (event.key) {
@@ -80,7 +83,9 @@ export function bindViewShortcuts(view: ViewControls, canvas: HTMLCanvasElement)
     }
     event.preventDefault();
   });
-  canvas.addEventListener('dblclick', () => view.reset());
+  canvas.addEventListener('dblclick', (event) => {
+    if (!onAcetate(event)) view.reset();
+  });
 }
 
 /** Keep the target inside the pan bounds, moving the camera by the same amount. */

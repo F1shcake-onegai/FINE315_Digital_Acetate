@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Right hand from above, pinching: thumb and curled index meet at (13.2, 21.4); the other
+       fingers are tucked under. Drawn like hand-open.svg: dark and wide first, light on top. -->
+  <defs>
+    <filter id="hand-pinch-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0.8" dy="1.6" stdDeviation="1.2" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <g filter="url(#hand-pinch-shadow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#1d1b19">
+      <polygon points="24.5,33 43,34.5 44.5,42 43,49 39,54.5 33.5,56 28.5,55 24.5,50.5 23,44" fill="#1d1b19" stroke-width="8.6"/>
+      <polyline points="27,48 20.5,42.5" stroke-width="13.6"/>
+      <polyline points="24,46.5 12,37 11.2,24.5" stroke-width="9.6"/>
+      <polyline points="26.5,34 23.5,23.5 15.5,19.5" stroke-width="8.9"/>
+      <polyline points="31.5,33 31,25" stroke-width="9.5"/>
+      <polyline points="37,33.5 38,26" stroke-width="9.3"/>
+      <polyline points="42,36 44,30" stroke-width="8.4"/>
+    </g>
+    <g stroke="#fbfaf8">
+      <polygon points="24.5,33 43,34.5 44.5,42 43,49 39,54.5 33.5,56 28.5,55 24.5,50.5 23,44" fill="#fbfaf8" stroke-width="6"/>
+      <polyline points="27,48 20.5,42.5" stroke-width="11"/>
+      <polyline points="24,46.5 12,37 11.2,24.5" stroke-width="7"/>
+      <polyline points="26.5,34 23.5,23.5 15.5,19.5" stroke-width="6.3"/>
+      <polyline points="31.5,33 31,25" stroke-width="6.9"/>
+      <polyline points="37,33.5 38,26" stroke-width="6.7"/>
+      <polyline points="42,36 44,30" stroke-width="5.8"/>
+    </g>
+  </g>
+</svg>

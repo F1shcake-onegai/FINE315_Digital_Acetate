@@ -183,7 +183,9 @@ z0       = lerp(paperThickness + gap, gap, θ / π)   // gap = 0.0003
 
 // sag: far vertices lag the hinge during motion (ω = angular velocity)
 sag      = clamp(-ω * 0.035 * u², -0.2, 0.2)
-θv       = θ + sag
+         // while held at u_grip: clamp(-ω * 0.035 * u * (u - u_grip), ...): the held point
+         // stays put, the part beyond it lags, the part before it bows slightly ahead
+θv       = clamp(θ + sag, 0, π)                     // never through the paper or the table
 
 // rotate about the hinge (x axis of the sheet)
 // |cos| keeps the bulge facing away from the surface on both sides.
@@ -218,31 +220,38 @@ Tunables: wave amplitudes, wavelengths, curl height, sag gain 0.035, gap.
 State: `closed | dragging | settling | open`. Variables: `θ` (0..π), `ω`.
 
 Grab
-- Raycast on pointer move; over an acetate → cursor `grab`.
-- `pointerdown` on an acetate: `setPointerCapture`, state = `dragging`. Record `d0` = grabbed point's distance from the hinge (use `max(d0, 0.05)` so grabs near the hinge are not twitchy). Cursor `grabbing`.
+- Raycast on pointer move, against each sheet as the flat rectangle through its hinge at its current angle (waves and sag move it by millimeters). Over an acetate the pointer becomes a drawn hand (user; `src/ui/cursors/`), open while hovering. It replaces the spec's `grab` / `grabbing` cursors, and is a page element rather than a CSS cursor so it keeps its size on any display. It isn't shown for touch.
+- `pointerdown` on an acetate: `setPointerCapture`, state = `dragging`. Record `d0` = grabbed point's distance from the hinge (use `max(d0, 0.05)` so grabs near the hinge are not twitchy). The hand pinches, its pinch point on the grabbed point. When `d0` was raised to 0.05, the sheet turns about an axis moved back along it, so the grabbed point starts on its circle and nothing jumps.
 
 Drag
-- Each frame: project the pointer onto the table plane (y = 0). `s` = signed distance from the hinge line, positive on the closed side.
-- `θ_target = acos(clamp(s / d0, -1, 1))`. The grabbed point stays under the pointer.
-- `ω = (θ_target − θ) / dt` (clamped), `θ = θ_target`.
-- All math is in world units, so drag feels the same at any zoom.
+- Each frame: project the pointer onto the table plane (y = 0). `s` = signed distance from the hinge line, positive on the closed side. `θ_projected = acos(clamp(s / d0, -1, 1))`.
+- From straight above, that projection leaves a lifted edge up to ~7 cm from the pointer on screen (at 90°, default view). So away from the table the grabbed point follows the pointer exactly: the pointer's ray is met with the circle the grabbed point sweeps, seen along the hinge (the ray's first crossing of its upper half). Near closed and open the exact answer folds back: lifting a point first moves it away from the view's center, so it would jump. There the projection rules. The two blend by the sheet's current angle over 30° (`trackBlendDeg`), so a grab never jumps, whether the sheet lies flat or is caught mid-swing. The projection alone is used when the camera is inside the circle (zoomed in closer than the grab's reach). Measured at max zoom-out: exact from 30° to 150°, within 17 px (~15 mm) near the ends.
+- `ω = (θ_target − θ) / dt`, clamped to ±20 rad/s and eased with a 0.05 s time constant so sag and the release don't flicker; `θ = θ_target`.
+- While held, sag pivots at the grabbed point (§5.5), so it stays under the hand.
+- All math is in world units, so drag feels the same at any zoom. At the default view a sheet passes ~95° with the pointer at the window's top; dragging on beyond the window or releasing there both open it.
 
 Release
 - `predicted = θ + ω * 0.15`. Target = `predicted > π/2 ? π : 0`. State = `settling`.
-- Spring per frame: `ω += (K (target − θ) − D ω) dt; θ += ω dt` with `K = 140`, `D = 20` (slight overshoot = the sheet lands and bounces once). Settle when |target − θ| < 0.002 and |ω| < 0.01 → state `open`/`closed`.
+- Spring per frame: `ω += (K (target − θ) − D ω) dt; θ += ω dt` with `K = 140`, `D = 16` (was 20, which let the sheet creep onto the table with no visible overshoot). A sheet that reaches the table (π) or the paper (0) bounces off it, keeping 0.3 of its speed: it lands after ~0.25 s, its free edge rebounds 5–15 mm, and it settles by ~0.65 s. Settle when |target − θ| < 0.002 and |ω| < 0.01 → state `open`/`closed`.
+- After release the sag's pivot eases from the grabbed point back to the hinge (0.1 s), so the far edge lags as §5.5 describes without a jump.
+- Time steps are capped at 0.05 s, and three's `Timer` skips the gap after a hidden tab.
 
 Click
 - pointerdown→up with < 4 px movement and < 200 ms: toggle flip (spring to the other state).
+- Double-clicking an acetate doesn't reset the view (it flips twice); double-clicking the table does.
 
 Keyboard
 - `1` / `2`: toggle set A / B.
+
+Touch
+- One finger drags or taps an acetate. A second finger lets go of the sheet, so pinch zoom and two-finger pan take over.
 
 ### 6.2 Zoom and pan
 
 - `OrbitControls`: `enableRotate = false`, `enablePan = true`, `enableDamping = true`, `dampingFactor = 0.08`, `zoomToCursor = true`, `screenSpacePanning = false` (pan stays on the table plane).
 - `minDistance = 0.06` (one 24 mm frame fills ~60% of the screen height), `maxDistance = 1.4` (both sets plus open acetates fit).
 - After each `controls.update()`, clamp `controls.target.x` to ±0.43 and `target.z` to [−0.51, 0.37]. Move the camera by the same delta so the tilt never changes.
-- Pan with a middle-button (or right-button) drag, or a two-finger drag on touch. The left button and one-finger touch never pan; they are reserved for grabbing the acetate (flip, later shown with a virtual hand).
+- Pan with a middle-button (or right-button) drag, or a two-finger drag on touch. The left button and one-finger touch never pan; they grab the acetate (flip, shown with the hand pointer).
 - Wheel / trackpad pinch = zoom. HTML buttons `−` `+` `Reset` top-right. Keys `+`, `−`, `0` reset. Double-click on empty table = reset.
 - Transmission resolution follows zoom: `renderer.transmissionResolutionScale` = 1.0 up to 1.0 m, lerping to 0.5 at 1.4 m (max zoom-out). The original 0.5 above 0.5 m blurred the prints under the sheet to mush at the default 0.9 m view (edge width 7 px vs 4 px at full resolution). The §9 slow-frame fallback still applies.
 
@@ -354,7 +363,7 @@ export const config = {
   layout:  { setOffsetX: 0.1495, clearAbove: 0.30 },
   camera:  { fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
              panX: 0.43, panZMin: -0.51, panZMax: 0.37 },
-  flip:    { K: 140, D: 20, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
+  flip:    { K: 140, D: 16, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
              clickPx: 4, clickMs: 200 },
   light:   { keyIntensity: 1.5, fillIntensity: 0.35, shadowMap: 2048, exposure: 0.5, blackPoint: 0.05 },
   parallax:{ envYawDeg: 3, envPitchDeg: 2, lerp: 0.08 },

@@ -1,5 +1,5 @@
 import './style.css';
-import { Scene, type MeshPhysicalMaterial } from 'three';
+import { Scene, Timer, type MeshPhysicalMaterial } from 'three';
 import { config } from './config';
 import { createRenderer, resizeRenderer, watchPixelRatio } from './scene/renderer';
 import { createCamera } from './scene/camera';
@@ -17,8 +17,10 @@ import { createTearTexture, loadKraft } from './textures/kraft';
 import { createScratchNormalTexture, createSmudgeTexture, loadWearSources } from './textures/wear';
 import { bindViewShortcuts, createViewControls } from './interaction/viewControls';
 import { createParallax } from './interaction/parallax';
+import { createFlip, type Flip } from './interaction/flip';
 import { createOverlay } from './ui/overlay';
-import { bindFresnelTest, exposeDevHandle, markReady } from './dev';
+import { createHand } from './ui/hand';
+import { bindDevPose, exposeDevHandle, markReady } from './dev';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene');
 if (!canvas) throw new Error('index.html is missing <canvas id="scene">');
@@ -49,16 +51,22 @@ watchPixelRatio(resize);
 resize();
 
 const view = createViewControls(camera, renderer);
-bindViewShortcuts(view, canvas);
 const parallax = createParallax(scene, canvas);
+const hand = createHand(canvas);
+let flip: Flip | null = null;  // once the sets exist
+bindViewShortcuts(view, canvas, (event) => flip?.isOverAcetate(event) ?? false);
 createOverlay(view);
 
 exposeDevHandle({ renderer, scene, camera }, view);
 
+const timer = new Timer();
+timer.connect(document);  // no long step after the tab was hidden
 let setsAdded = false;
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop((time) => {
+  timer.update(time);
   view.update();
   parallax.update();
+  flip?.update(timer.getDelta());
   // The acetate's own studio turns with the room, so its highlights drift with the pointer too.
   for (const material of acetateMaterials) material.envMapRotation.copy(scene.environmentRotation);
   renderer.render(scene, camera);
@@ -97,7 +105,8 @@ async function addSets(): Promise<void> {
     return createSet(sheet.name, sheet.x, { scan: sheet.scan, acetateMaterial, rimMaterial, footprint, tapeMaterial });
   });
   scene.add(...sets.map((set) => set.group));
-  bindFresnelTest(sets);
+  flip = createFlip(sets, camera, renderer.domElement, hand);
+  bindDevPose(flip);
   setsAdded = true;
 }
 

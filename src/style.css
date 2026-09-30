@@ -61,3 +61,32 @@ body {
 .view-buttons button:hover {
   background: #fff;
 }
+
+.hand {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: none;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.hand.visible {
+  display: block;
+}
+
+.hand svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hand .hand-pinch,
+.hand.pinching .hand-open {
+  display: none;
+}
+
+.hand.pinching .hand-pinch {
+  display: block;
+}

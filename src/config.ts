@@ -151,9 +151,22 @@ export const config = {
 
   // §6.1, §7.2
   flip: {
-    K: 140, D: 20, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
+    // D: spec 20 is damped enough that the sheet creeps onto the table without the overshoot it
+    // asks for; at 16 it lands after ~0.25 s, bounces once (free edge up 5–11 mm), settles by ~0.65 s.
+    K: 140, D: 16, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
     clickPx: 4, clickMs: 200,
     settleAngle: 0.002, settleOmega: 0.01,
+    keys: ['1', '2'],       // toggle set A, B
+    // (not in spec) Within this angle of closed or open a drag turns the sheet by the pointer's
+    // projection on the table (§6.1); beyond it, blended in, the grabbed point follows the pointer
+    // exactly. Near the table the exact solution folds: lifting a point first moves it away from
+    // the view's center on screen, so it would jump.
+    trackBlendDeg: 30,
+    maxOmega: 20,           // (not in spec) rad/s: the drag's angular velocity is clamped to this
+    omegaSmoothS: 0.05,     // (not in spec) s: ω eases toward the drag's rate, so sag and release don't flicker
+    bounce: 0.3,            // (not in spec) share of ω kept when a landing sheet bounces off the table or paper
+    gripReleaseS: 0.1,      // (not in spec) s: after release, sag's pivot eases from the grabbed point to the hinge
+    maxStepS: 0.05,         // (not in spec) s: longest time step, so a stalled tab doesn't fling the spring
   },
 
   // §5.6
@@ -231,6 +244,11 @@ export const config = {
   ui: {
     hint: 'Drag the acetate to flip · Scroll to zoom · Middle-drag to pan',
     hintFadeS: 6,
+    // (not in spec) The hand-shaped pointer (user) over the acetates, src/ui/cursors/*.svg.
+    hand: {
+      sizePx: 56,
+      hotspot: { x: 13.2, y: 21.4 },  // the pinch point, in the drawings' 64-unit viewBox
+    },
   },
 
   // §7.2

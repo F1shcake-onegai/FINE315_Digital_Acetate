@@ -19,8 +19,12 @@ export interface AcetateMaps {
 export interface Acetate {
   /** The sheet in its set's frame, hinged along the paper's far edge; the rim line is a child. */
   mesh: Mesh;
-  /** Pose the sheet: hinge angle θ (0 closed … π open) and angular velocity ω in rad/s (sag). */
-  setPose(theta: number, omega?: number): void;
+  /**
+   * Pose the sheet: hinge angle θ (0 closed … π open), angular velocity ω in rad/s (sag), and
+   * `grip`, the held point's distance from the hinge as a fraction of the sheet (sag pivots there;
+   * 0 when nobody holds it).
+   */
+  setPose(theta: number, omega?: number, grip?: number): void;
 }
 
 /**
@@ -118,15 +122,19 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
   rim.frustumCulled = false;
   mesh.add(rim);
 
-  function setPose(theta: number, omega = 0): void {
+  function setPose(theta: number, omega = 0, grip = 0): void {
     const z0 = hingeHeight(theta);
     for (let i = 0; i < position.count; i++) {
       const d = rest[i * 3 + 1];
       const lift = rest[i * 3 + 2];
       const u = d / a.h;
-      const sag = MathUtils.clamp(-omega * a.sagGain * u * u, -a.sagMax, a.sagMax);  // far side lags
-      const cos = Math.cos(theta + sag);
-      const sin = Math.sin(theta + sag);
+      // Beyond the held point the sheet lags; between it and the hinge it bows ahead a little.
+      // Unheld (grip 0) this is §5.5's −ω·sagGain·u².
+      const sag = MathUtils.clamp(-omega * a.sagGain * u * (u - grip), -a.sagMax, a.sagMax);
+      // No part passes through the paper (0) or the table (π).
+      const angle = MathUtils.clamp(theta + sag, 0, Math.PI);
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
       // |cos| keeps the bulge facing away from the surface on both sides (§5.5).
       position.setXYZ(i, rest[i * 3], z0 + lift * Math.abs(cos) + d * sin, d * cos - lift * sin);
     }

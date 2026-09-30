@@ -1,8 +1,7 @@
 # Contact sheets under acetate
 
 A three.js viewer for two film contact sheets lying on a table, each under a clear acetate sheet
-taped along its top edge. Grabbing and flipping the acetate open comes next (M5). Built to
-`docs/SPEC.md`.
+hinged along its top edge that you can grab and flip open. Built to `docs/SPEC.md`.
 
 ## Status
 
@@ -13,9 +12,9 @@ taped along its top edge. Grabbing and flipping the acetate open comes next (M5)
 | M2 Flat acetate: clear, slightly hazy sheet over each print, contact shadow, Fresnel test | done |
 | M3 Bend traces: waves and corner curl, fingerprints, scratches, hinge creases, rim; the user's drawing on the sheet | done |
 | M4 Tape: kraft strip over the hinge, wrapped onto the paper's back, torn ends, follows the hinge angle | done; hidden for now at the user's request (`tape.visible`) |
-| M5 Flip | not started |
+| M5 Flip: grab and drag with a hand pointer, release snap, spring landing, sag, click, keys 1/2 | done |
 | M6 View: zoom, pan, buttons, keys, parallax, hint | done |
-| M7 Polish | optional HDRI and this README done; dust, corner contact shadow, wall variant and perf fallbacks act on the acetate and come after it |
+| M7 Polish | optional HDRI and this README done; dust, corner contact shadow, wall variant and perf fallbacks to do |
 
 ## Run
 
@@ -33,8 +32,10 @@ npm run typecheck
 
 - Scroll or pinch: zoom toward the cursor (0.06–1.4 m)
 - Middle-drag (or right-drag, or two fingers on touch): pan along the table
-- The left button is reserved for grabbing the acetate once it exists
-- `−` `+` `Reset` buttons, keys `-` `+` `0`, double-click: zoom and reset
+- Left-drag an acetate to flip it about its top edge; over a sheet the pointer becomes a hand,
+  pinching while you hold it. Let go and it springs open or shut, whichever way it was going.
+- Click an acetate, or press `1` / `2`, to flip sheet A / B
+- `−` `+` `Reset` buttons, keys `-` `+` `0`, double-click the table: zoom and reset
 
 ## Assets
 
@@ -79,6 +80,11 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
   color comes from an ambientCG scan instead of generated noise. The ends are torn with a light
   fiber margin. The adhesive side, which shows through the open acetate, looks darker, like damp
   paper.
+- Dragging: away from the table the grabbed point follows the pointer exactly (the spec's table
+  projection left a lifted edge up to 7 cm from it); near closed and open the projection is kept.
+  Landing damping is 16, not 20, so the sheet visibly lands and bounces once, and no part ever
+  passes through the table or paper. The pointer over a sheet is a drawn hand (user) instead of
+  the grab/grabbing cursors.
 - `PCFShadowMap` and `HDRLoader`, because three r186 removed `PCFSoftShadowMap` and deprecated
   `RGBELoader`.
 - The placeholder sheet uses 5 frames per strip; 6 don't fit inside its white border.
@@ -86,9 +92,10 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 ## Development
 
 - On the dev server, `window.__app` exposes `renderer`, `scene`, `camera`, `config`,
-  `view(distance, x, z)` and `acetateAngle(degrees)`, which poses both acetates and their tape
-  (0 closed, 180 open). For example, `__app.view(0.12, -0.1495, 0)` gives a close look at sheet A.
+  `view(distance, x, z)`, `acetateAngle(degrees)`, which poses both acetates (0 closed, 180
+  open), and `flip` (`flip.states()`, `flip.toggle(0)`). For example, `__app.view(0.12, -0.1495, 0)`
+  gives a close look at sheet A.
 - Dev key `F` tilts both acetates to 80° and back, to check the grazing-angle flash.
 - Source layout: `src/scene` (renderer, camera, environment, lighting, table, paper, acetate, tape,
   set), `src/textures` (placeholder sheet, procedural maps, scan loader, wear, artwork, kraft),
-  `src/interaction` (view controls, parallax), `src/ui` (overlay).
+  `src/interaction` (view controls, parallax, flip), `src/ui` (overlay, hand pointer and its drawings).
