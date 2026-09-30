@@ -34,7 +34,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 - Desktop web app. Mouse, trackpad, keyboard.
 - Two fixed sets, side by side. Each set = one contact sheet print + one clear acetate sheet, joined along one edge by brown kraft paper tape. (The tape is hidden for now at the user's request, 2026-09-29: the sheets still hinge along that edge, with nothing drawn there. See Tape in Decisions.)
 - Content is static: two fixed scans. No upload or switching UI.
-- Acetate is transparent but must read as plastic: reflections, Fresnel flash at grazing angles, faint smudges and scratches, bend streaks (glare stretched along waves in the sheet).
+- Acetate is transparent but must read as plastic: reflections, Fresnel flash at grazing angles, faint smudges and scratches, bend streaks (glare stretched along waves in the sheet). (The user wants the sheet flat when it lies on the paper, 2026-09-30, so there are no waves at rest: glare sweeps along the sheet while it bends in motion.)
 - User can grab the acetate and flip it about the taped edge. One axis only. Snaps to closed (0°) or open (180°).
 - Sheets sit on an off-white surface. Table top is the default. Wall is a variant.
 - Acetate is the same size as the paper or slightly larger.
@@ -61,7 +61,7 @@ Realistic web viewer: two film contact sheets, each with a clear acetate sheet t
 | Layout | Sets centered at x = ±0.1495 (60 mm gap). Keep ≥ 0.30 m of clear table beyond the top edge for the open acetate. |
 | Camera | PerspectiveCamera fov 35°, looking straight down (image plane parallel to the paper, tilt 0°; was 20°) at the center of both sets. Default distance 0.9 m. |
 | Renderer | WebGLRenderer, ACES filmic tone mapping followed by a Levels-style black point (implemented as `CustomToneMapping` wrapping three's ACES), sRGB output, `PCFShadowMap` (soft via `shadow.radius`; `PCFSoftShadowMap` was removed in three r186), pixel ratio = min(devicePixelRatio, 2). |
-| Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). The acetate reflects its own procedural studio instead (`config.acetateStudio`, PMREM as the material's `envMap`). It is dark overhead, so the flat sheet never veils the prints (user: "highlights only"). Two thin strips 18° left and right of vertical, running front to back, are caught on the waves' outer crests as long streaks. Larger softboxes 40–65° off vertical and a light floor provide glints and the grazing-angle flash. Pointer parallax rotates it too. |
+| Environment | `RoomEnvironment` through `PMREMGenerator` by default. Optional real HDRI at `public/assets/env.hdr` (1K) loaded with `HDRLoader` if present (`RGBELoader` is its deprecated alias since r180). The acetate reflects its own procedural studio instead (`config.acetateStudio`, PMREM as the material's `envMap`). It is dark overhead, so the flat sheet never veils the prints (user: "highlights only"). Two thin strips 30° left and right of vertical, running front to back, light the sheet only at steep views near the screen's sides. (They were 18°, where the rest shape's wave crests caught them as streaks; once the sheet lay flat at rest (user) they veiled the outer quarter of each print, lifting its blacks from 16 to 25.) Larger softboxes 40–65° off vertical and a light floor provide glints and the grazing-angle flash. Pointer parallax rotates it too. |
 | Deformation | Acetate vertices are transformed on the CPU every frame (rest shape + hinge rotation + sag), then `computeVertexNormals()`. Grid 60×80. |
 | Scans | `public/assets/sheet-a.jpg` and `sheet-b.jpg`, same aspect as the paper (11:14), ≥ 4000 px long side. Procedural placeholder if missing. |
 | Look (locked 2026-09-29) | The tonal look the user approved. Don't change it without their approval. `RoomEnvironment` (no HDRI), key light 1.5 at (−0.6, 1.2, 0.8), hemisphere fill 0.35, exposure 0.5, black point 0.05; prints roughness 0.4, specularIntensity 0.5, envMapIntensity 0.6; table `#ede8df`, roughness 0.92. Measured at the default view (1600 × 1000, 0.9 m): print blacks ≈ 9/255, blank white frame ≈ 222, table ≈ 217. Reference render: `docs/look-reference.jpg`. Later work (the acetate, HDRIs) is tuned on top of this look, never by moving these values. These keys are tagged `locked` in `src/config.ts`. |
@@ -171,6 +171,8 @@ Local coords per vertex: `x` across (−W/2..W/2), `d` = distance from hinge (0.
 
 ```
 // rest shape (meters). Lift only: zRest >= 0 everywhere.
+// Flat at rest (user, 2026-09-30: "the acetate is usually flat on paper"): the amplitudes below
+// are 0 in config (wave1.a, wave2.a, curl). M3 used 0.0012, 0.0004 and 0.004, shown here.
 env      = smoothstep(0, 0.35, u)                   // tape holds it flat near the hinge
 wave     = 0.0012 * (0.5 + 0.5 * sin(2π x / 0.11 + 1.3)) * env
          + 0.0004 * (0.5 + 0.5 * sin(2π x / 0.045 + 0.4)) * env
@@ -290,7 +292,7 @@ As specified.
 
 ## 8. Visual acceptance ("what done looks like")
 
-- Closed, at rest: acetate reads as clear plastic. One or two soft, long highlight streaks follow the wave crests. Paper under it is fully readable, no more than ~5% darker. Bottom and side overhang show as a faint bright line. Tape (when shown) is matte and fibrous, wrapped over the top edge, with torn ends.
+- Closed, at rest: acetate lies flat on the paper and reads as clear plastic: a faint haze and its bright overhang edges, with no streaks or veil (user). Paper under it is fully readable, no more than ~5% darker (measured 1–3% on midtones and whites). Bottom and side overhang show as a faint bright line. Tape (when shown) is matte and fibrous, wrapped over the top edge, with torn ends.
 - Moving the mouse slides the highlights across the acetate.
 - Mid-flip (60°–120°): the sheet flashes near mirror-like; the table and paper are visible reflected in it.
 - Landing: the sheet overshoots once and settles; the far edge lags the hinge during the motion.
@@ -364,9 +366,9 @@ export const config = {
   acetate: { w: 0.239, h: 0.304, segX: 60, segY: 80, gap: 0.0003,
              ior: 1.48, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.08,
              normalScale: 0.05, tint: '#ffffff',
-             wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
-             wave2: { a: 0.0004, lambda: 0.045, phase: 0.4 },
-             curl: 0.004, sagGain: 0.05, sagMax: 0.35 },
+             wave1: { a: 0, lambda: 0.11, phase: 1.3 },
+             wave2: { a: 0, lambda: 0.045, phase: 0.4 },
+             curl: 0, sagGain: 0.05, sagMax: 0.35 },
   tape:    { w: 0.025, overhang: 0.005, color: '#b9834a', roughness: 0.95 },
   layout:  { setOffsetX: 0.1495, clearAbove: 0.30 },
   camera:  { fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,

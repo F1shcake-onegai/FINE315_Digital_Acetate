@@ -10,7 +10,7 @@ hinged along its top edge that you can grab and flip open. Built to `docs/SPEC.m
 | M0 Scaffold | done |
 | M1 Paper: scans, pearl-finish prints, key/fill light, shadows | done |
 | M2 Flat acetate: clear, slightly hazy sheet over each print, contact shadow, Fresnel test | done |
-| M3 Bend traces: waves and corner curl, fingerprints, scratches, hinge creases, rim; the user's drawing on the sheet | done |
+| M3 Bend traces: waves and corner curl (now off: flat at rest, user), fingerprints, scratches, hinge creases, rim; the user's drawing on the sheet | done |
 | M4 Tape: kraft strip over the hinge, wrapped onto the paper's back, torn ends, follows the hinge angle | done; hidden for now at the user's request (`tape.visible`) |
 | M5 Flip: grab and drag with a hand pointer, release snap, spring landing, sag, click, keys 1/2 | done |
 | M6 View: zoom, pan, buttons, keys, parallax, hint | done |
@@ -65,6 +65,9 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - Tone-mapping exposure is 0.5, not 1.0, which washed the prints out. After ACES, a Levels-style
   black point (`light.blackPoint`, 0.05) deepens the milky blacks; whites are unaffected.
 - The table is 4 m, not 2 m, so zoomed-out views never reach its edge.
+- The acetate lies flat on the paper at rest (user): the spec's rest waves and corner curl are
+  set to zero, and the studio's two side lights moved from 18° to 30° off vertical so the flat
+  sheet doesn't veil the prints' outer edges.
 - The acetate is clear but slightly hazy (roughness 0.12, transmission 0.985) and neutral in tint.
   It reflects its own dark studio with softboxes instead of the room, so it adds highlights
   without greying the prints. Transmission stays at full resolution out to 1.0 m; the spec's

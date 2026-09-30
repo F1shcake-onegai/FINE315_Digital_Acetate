@@ -46,9 +46,12 @@ export const config = {
     haze: { share: 0.15, smudgeShare: 0.45, glowLod: 2 },
     normalScale: 0.05,
     tint: '#ffffff',        // neutral clear (user); spec had a faint warm #f3f1ec
-    wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
-    wave2: { a: 0.0004, lambda: 0.045, phase: 0.4 },
-    curl: 0.004,
+    // Flat at rest (user, 2026-09-30: "the acetate is usually flat on paper"): the rest shape's
+    // waves and corner curl are off, so a sheet lying still is flat and shows no wave streaks; it
+    // bends only while lifted and dropped. M3's values were a 1.2 and 0.4 mm, curl 0.004.
+    wave1: { a: 0, lambda: 0.11, phase: 1.3 },
+    wave2: { a: 0, lambda: 0.045, phase: 0.4 },
+    curl: 0,
     // Sag (§5.5): how far the sheet trails its motion. Spec 0.035 / 0.2 left it looking rigid in
     // flight; the user wants it to flex a bit while lifted and dropped.
     sagGain: 0.05, sagMax: 0.35,
@@ -217,21 +220,22 @@ export const config = {
   },
 
   // (not in spec) What the acetate reflects: its own small studio, so the sheet shows highlights
-  // without veiling the prints (user: "highlights only"). Overhead is dark apart from two thin
-  // strips: the spec's waves tilt the sheet sideways by up to ~3.6°, swinging reflections up to
-  // ~7° left or right, so strips 18° off vertical to the left and right, running front to back,
-  // are caught on each sheet's outer wave crests as long streaks, while flat areas stay dark.
-  // Larger softboxes 40–65° off vertical light the tilted sheet (flash, glints); the light floor
-  // stands in for the table in grazing reflections. Positions are directions from the reflection
-  // probe (room units); width runs along the panel's horizontal axis; intensities are HDR radiance.
+  // without veiling the prints (user: "highlights only"). Overhead is dark, so a sheet lying flat
+  // stays clear. Two thin strips 30° off vertical to the left and right, running front to back,
+  // light the sheet only at steep views near the screen's sides. At 18° they were caught on the
+  // rest shape's wave crests as streaks; with the sheet flat at rest (user) they veiled the outer
+  // quarter of each print at the default view. Larger softboxes 40–65° off vertical light the
+  // tilted, bending sheet (flash, glints); the light floor stands in for the table in grazing
+  // reflections. Positions are directions from the reflection probe (room units); width runs
+  // along the panel's horizontal axis; intensities are HDR radiance.
   acetateStudio: {
     roomSize: 20,
     wallColor: '#0b0b0b',
     floor: { color: '#ede8df', intensity: 1.2 },
     blur: 0.02,             // PMREM sigma
     softboxes: [
-      { position: { x: -2.8, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },  // streak strip, left
-      { position: { x: 2.8, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },   // streak strip, right
+      { position: { x: -4.97, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },  // side strip, left
+      { position: { x: 4.97, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },   // side strip, right
       { position: { x: -6, y: 7, z: 5 }, width: 6, height: 4, intensity: 8 },        // key side, upper-left-front
       { position: { x: 0, y: 8, z: -6.5 }, width: 12, height: 1.2, intensity: 10 },  // long strip over the far side
       { position: { x: 9, y: 4, z: -1 }, width: 3, height: 6, intensity: 5 },        // right-hand fill
