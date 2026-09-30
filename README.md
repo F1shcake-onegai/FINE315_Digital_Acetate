@@ -84,7 +84,9 @@ Changes from the original spec, all recorded in `docs/SPEC.md`:
 - Dragging: away from the table the grabbed point follows the pointer exactly (the spec's table
   projection left a lifted edge up to 7 cm from it); near closed and open the projection is kept.
   Landing damping is 16, not 20, so the sheet visibly lands and bounces once, and no part ever
-  passes through the table or paper. The pointer over a sheet is a drawn hand (user) instead of
+  passes through the table or paper. The sheet flexes: held, it bends under its own weight
+  (peeling off the print as it's lifted), and in flight its far part trails more than the
+  spec's sag (`acetate.droop`, `sagGain`, `sagMax`). The pointer over a sheet is a drawn hand (user) instead of
   the grab/grabbing cursors.
 - `PCFShadowMap` and `HDRLoader`, because three r186 removed `PCFSoftShadowMap` and deprecated
   `RGBELoader`.

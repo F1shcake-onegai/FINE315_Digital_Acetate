@@ -20,11 +20,12 @@ export interface Acetate {
   /** The sheet in its set's frame, hinged along the paper's far edge; the rim line is a child. */
   mesh: Mesh;
   /**
-   * Pose the sheet: hinge angle θ (0 closed … π open), angular velocity ω in rad/s (sag), and
-   * `grip`, the held point's distance from the hinge as a fraction of the sheet (sag pivots there;
-   * 0 when nobody holds it).
+   * Pose the sheet: hinge angle θ (0 closed … π open) of the line from the hinge to the held point,
+   * angular velocity ω in rad/s (sag), `grip`, the held point's distance from the hinge as a
+   * fraction of the sheet, and `held`, how much the hand carries it (1 held … 0 let go). Returns
+   * the sheet's angle where it leaves the hinge, which bends away from θ while held.
    */
-  setPose(theta: number, omega?: number, grip?: number): void;
+  setPose(theta: number, omega?: number, grip?: number, held?: number): number;
 }
 
 /**
@@ -130,17 +131,24 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
   rim.frustumCulled = false;
   mesh.add(rim);
 
-  function setPose(theta: number, omega = 0, grip = 0): void {
+  function setPose(theta: number, omega = 0, grip = 0, held = 0): number {
     const z0 = hingeHeight(theta);
+    // A held sheet bends under its own weight toward the table on whichever side it leans (cos θ):
+    // it hangs straight when upright and stays flat when lying down.
+    const droop = -a.droop * held * Math.cos(theta);
+    const pivot = grip * held;  // sag pivots at the hand while held, at the hinge once let go
     for (let i = 0; i < position.count; i++) {
       const d = rest[i * 3 + 1];
       const lift = rest[i * 3 + 2];
       const u = d / a.h;
-      // Beyond the held point the sheet lags; between it and the hinge it bows ahead a little.
-      // Unheld (grip 0) this is §5.5's −ω·sagGain·u².
-      const sag = MathUtils.clamp(-omega * a.sagGain * u * (u - grip), -a.sagMax, a.sagMax);
+      // Beyond the pivot the sheet lags; between it and the hinge it bows ahead a little.
+      // Unheld this is §5.5's −ω·sagGain·u².
+      const sag = MathUtils.clamp(-omega * a.sagGain * u * (u - pivot), -a.sagMax, a.sagMax);
+      // Between the hinge and the hand the sheet sags (0 at the hand, most at the hinge, where
+      // it peels off the paper as it's lifted); beyond the hand the free part hangs.
+      const bend = u <= grip ? grip - u : (u - grip) ** 2 / (1 - grip);
       // No part passes through the paper (0) or the table (π).
-      const angle = MathUtils.clamp(theta + sag, 0, Math.PI);
+      const angle = MathUtils.clamp(theta + sag + droop * bend, 0, Math.PI);
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
       // |cos| keeps the bulge facing away from the surface on both sides (§5.5).
@@ -156,6 +164,7 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
       ringPositions[k * 3 + 2] = position.getZ(vertex);
     });
     rimGeometry.setPositions(ringPositions);
+    return MathUtils.clamp(theta + droop * grip, 0, Math.PI);  // the bend at u = 0
   }
 
   setPose(0);

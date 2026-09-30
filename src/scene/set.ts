@@ -23,9 +23,10 @@ export interface SetHandle {
   group: Group;
   /**
    * Hinge angle θ of this set's acetate in radians (0 closed … π open), its angular velocity ω,
-   * and the held point's distance from the hinge as a fraction of the sheet (0 when not held).
+   * the held point's distance from the hinge as a fraction of the sheet, and how much the hand
+   * carries the sheet (1 held … 0 let go).
    */
-  setAngle(theta: number, omega?: number, grip?: number): void;
+  setAngle(theta: number, omega?: number, grip?: number, held?: number): void;
 }
 
 /**
@@ -45,9 +46,9 @@ export function createSet(name: string, offsetX: number, parts: SetParts): SetHa
   group.add(createPaper(parts.scan), acetate.mesh, closedShadow, openShadow);
   if (tape) group.add(tape.mesh);
 
-  function setAngle(theta: number, omega = 0, grip = 0): void {
-    acetate.setPose(theta, omega, grip);
-    tape?.setPose(theta);
+  function setAngle(theta: number, omega = 0, grip = 0, held = 0): void {
+    const leaving = acetate.setPose(theta, omega, grip, held);
+    tape?.setPose(theta, leaving);
     const open = theta / Math.PI;
     closedShadow.material.opacity = config.contact.closedOpacity * (1 - open);
     openShadow.material.opacity = config.contact.openOpacity * open;

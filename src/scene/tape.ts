@@ -6,8 +6,11 @@ import { hingeHeight } from './acetate';
 export interface Tape {
   /** The strip in its set's frame. */
   mesh: Mesh;
-  /** Follow the acetate's hinge angle θ (0 closed … π open). */
-  setPose(theta: number): void;
+  /**
+   * Follow the acetate: its hinge angle θ (0 closed … π open) sets the hinge's height, and `angle`,
+   * the sheet's angle where it leaves the hinge (θ unless it bends while held), the tape's.
+   */
+  setPose(theta: number, angle?: number): void;
 }
 
 /** End to end, before tearing: the acetate's top edge plus the overhang at each end. */
@@ -134,10 +137,10 @@ export function createTape(material: MeshStandardMaterial, offsetX: number): Tap
     }
   }
 
-  function setPose(theta: number): void {
-    // In the (y, z) plane the sheet runs from the hinge along (sin, cos); its top face points (cos, −sin).
-    const sin = Math.sin(theta);
-    const cos = Math.cos(theta);
+  function setPose(theta: number, angle = theta): void {
+    // In the (y, z) plane the sheet leaves the hinge along (sin, cos); its top face points (cos, −sin).
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
     const ay = hingeHeight(theta) + lift * cos;  // the acetate half at the hinge
     const az = hingeZ - lift * sin;
     const by = lift;                             // the paper half at the hinge, between paper and table
@@ -148,7 +151,7 @@ export function createTape(material: MeshStandardMaterial, offsetX: number): Tap
     // The fold leaves the acetate half toward the hinge and joins the paper half heading +z. Handles
     // as for a circular arc through the turn between them (π when closed, 0 when open).
     const chord = Math.hypot(by - ay, bz - az);
-    const handle = chord / (3 * Math.cos((Math.PI - theta) / 4) ** 2);
+    const handle = chord / (3 * Math.cos((Math.PI - angle) / 4) ** 2);
     const p1y = ay - handle * sin;
     const p1z = az - handle * cos;
     const p2y = by;

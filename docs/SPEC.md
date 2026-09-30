@@ -181,11 +181,19 @@ zRest    = wave + curl
 // height off the surface: on paper when closed, on table when open
 z0       = lerp(paperThickness + gap, gap, θ / π)   // gap = 0.0003
 
-// sag: far vertices lag the hinge during motion (ω = angular velocity)
-sag      = clamp(-ω * 0.035 * u², -0.2, 0.2)
-         // while held at u_grip: clamp(-ω * 0.035 * u * (u - u_grip), ...): the held point
-         // stays put, the part beyond it lags, the part before it bows slightly ahead
-θv       = clamp(θ + sag, 0, π)                     // never through the paper or the table
+// sag: far vertices lag the hinge during motion (ω = angular velocity). Was 0.035 and ±0.2,
+// which looked rigid; the user wants the sheet to flex a bit while lifted and dropped.
+sag      = clamp(-ω * 0.05 * u * (u - u_pivot), -0.35, 0.35)
+         // u_pivot = u_grip * held. held eases to 1 while the sheet is dragged (0.12 s) and back
+         // to 0 once let go. While held the grabbed point stays put, the part beyond it lags and the
+         // part before it bows slightly ahead; unheld this is -ω * 0.05 * u².
+
+// droop: a held sheet bends under its own weight, toward the table on the side it leans
+// (cos θ): it peels off the paper as it's lifted, hangs straight when upright, lies flat when down.
+// θ is the angle of the line from the hinge to the grabbed point, which the droop leaves alone.
+droop    = -0.3 * held * cos(θ) * (u <= u_grip ? u_grip - u : (u - u_grip)² / (1 - u_grip))
+
+θv       = clamp(θ + sag + droop, 0, π)             // never through the paper or the table
 
 // rotate about the hinge (x axis of the sheet)
 // |cos| keeps the bulge facing away from the surface on both sides.
@@ -196,7 +204,7 @@ z' = d * cos(θv) - zRest * sin(θv)     // measured from the hinge line, positi
 
 Then `positions.needsUpdate = true`, `computeVertexNormals()`, `computeBoundingSphere()` (raycasting uses the bounding sphere).
 
-Tunables: wave amplitudes, wavelengths, curl height, sag gain 0.035, gap.
+Tunables: wave amplitudes, wavelengths, curl height, sag gain 0.05 and max 0.35, droop 0.3, gap. Each vertex sits at its distance from the hinge along its angle θv, so a bent sheet stretches slightly (a few percent at the strongest bend): unnoticeable in motion.
 
 ### 5.6 Lighting
 
@@ -227,13 +235,13 @@ Drag
 - Each frame: project the pointer onto the table plane (y = 0). `s` = signed distance from the hinge line, positive on the closed side. `θ_projected = acos(clamp(s / d0, -1, 1))`.
 - From straight above, that projection leaves a lifted edge up to ~7 cm from the pointer on screen (at 90°, default view). So away from the table the grabbed point follows the pointer exactly: the pointer's ray is met with the circle the grabbed point sweeps, seen along the hinge (the ray's first crossing of its upper half). Near closed and open the exact answer folds back: lifting a point first moves it away from the view's center, so it would jump. There the projection rules. The two blend by the sheet's current angle over 30° (`trackBlendDeg`), so a grab never jumps, whether the sheet lies flat or is caught mid-swing. The projection alone is used when the camera is inside the circle (zoomed in closer than the grab's reach). Measured at max zoom-out: exact from 30° to 150°, within 17 px (~15 mm) near the ends.
 - `ω = (θ_target − θ) / dt`, clamped to ±20 rad/s and eased with a 0.05 s time constant so sag and the release don't flicker; `θ = θ_target`.
-- While held, sag pivots at the grabbed point (§5.5), so it stays under the hand.
+- While held, sag pivots at the grabbed point and the sheet droops under its weight between the hinge and the hand (§5.5); both leave the grabbed point under the hand.
 - All math is in world units, so drag feels the same at any zoom. At the default view a sheet passes ~95° with the pointer at the window's top; dragging on beyond the window or releasing there both open it.
 
 Release
 - `predicted = θ + ω * 0.15`. Target = `predicted > π/2 ? π : 0`. State = `settling`.
 - Spring per frame: `ω += (K (target − θ) − D ω) dt; θ += ω dt` with `K = 140`, `D = 16` (was 20, which let the sheet creep onto the table with no visible overshoot). A sheet that reaches the table (π) or the paper (0) bounces off it, keeping 0.3 of its speed: it lands after ~0.25 s, its free edge rebounds 5–15 mm, and it settles by ~0.65 s. Settle when |target − θ| < 0.002 and |ω| < 0.01 → state `open`/`closed`.
-- After release the sag's pivot eases from the grabbed point back to the hinge (0.1 s), so the far edge lags as §5.5 describes without a jump.
+- After release the hand's hold eases off (0.12 s): the droop fades and sag's pivot moves back to the hinge, so the far edge lags as §5.5 describes without a jump.
 - Time steps are capped at 0.05 s, and three's `Timer` skips the gap after a hidden tab.
 
 Click
@@ -358,7 +366,7 @@ export const config = {
              normalScale: 0.05, tint: '#ffffff',
              wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
              wave2: { a: 0.0004, lambda: 0.045, phase: 0.4 },
-             curl: 0.004, sagGain: 0.035, sagMax: 0.2 },
+             curl: 0.004, sagGain: 0.05, sagMax: 0.35 },
   tape:    { w: 0.025, overhang: 0.005, color: '#b9834a', roughness: 0.95 },
   layout:  { setOffsetX: 0.1495, clearAbove: 0.30 },
   camera:  { fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,

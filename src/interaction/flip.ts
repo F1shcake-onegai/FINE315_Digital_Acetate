@@ -8,6 +8,8 @@ type Mode = 'closed' | 'dragging' | 'settling' | 'open';
 
 /** Rays this close to parallel with a sheet miss it. */
 const GRAZING = 1e-6;
+/** An eased value this close to its goal snaps to it. */
+const SETTLED = 1e-3;
 
 /** One set's acetate: §6.1 state and variables. */
 interface Sheet {
@@ -17,8 +19,10 @@ interface Sheet {
   omega: number;
   /** Where a release or a toggle sends the sheet: 0 (closed) or π (open). */
   target: number;
-  /** The held point's distance from the hinge as a fraction of the sheet; eases to 0 once let go. */
+  /** The held point's distance from the hinge as a fraction of the sheet. */
   grip: number;
+  /** How much the hand carries the sheet: eases toward 1 while it's dragged and back to 0 once let go. */
+  held: number;
   /** The pose changed since the set was last told. */
   moved: boolean;
 }
@@ -69,7 +73,7 @@ export function createFlip(sets: SetHandle[], camera: PerspectiveCamera, canvas:
   const flip = config.flip;
   const sheets: Sheet[] = sets.map((set) => {
     set.group.updateWorldMatrix(true, false);  // hit tests may run before the next render updates it
-    return { set, mode: 'closed', theta: 0, omega: 0, target: 0, grip: 0, moved: false };
+    return { set, mode: 'closed', theta: 0, omega: 0, target: 0, grip: 0, held: 0, moved: false };
   });
   const pointer = { x: 0, y: 0, inside: false, buttons: 0, type: '' };
   let drag: Drag | null = null;
@@ -172,13 +176,20 @@ export function createFlip(sets: SetHandle[], camera: PerspectiveCamera, canvas:
       sheet.theta = sheet.theta > Math.PI ? 2 * Math.PI - sheet.theta : -sheet.theta;
       sheet.omega *= -flip.bounce;
     }
-    sheet.grip *= Math.exp(-step / flip.gripReleaseS);
     if (Math.abs(sheet.target - sheet.theta) < flip.settleAngle && Math.abs(sheet.omega) < flip.settleOmega) {
       sheet.theta = sheet.target;
       sheet.omega = 0;
-      sheet.grip = 0;
       sheet.mode = sheet.target > Math.PI / 2 ? 'open' : 'closed';
     }
+    sheet.moved = true;
+  }
+
+  /** The hand takes up the sheet's weight when it grabs, and gives it back when it lets go. */
+  function ease(sheet: Sheet, step: number): void {
+    const goal = drag?.sheet === sheet ? 1 : 0;
+    if (sheet.held === goal) return;
+    sheet.held += (goal - sheet.held) * (1 - Math.exp(-step / flip.holdEaseS));
+    if (Math.abs(goal - sheet.held) < SETTLED) sheet.held = goal;
     sheet.moved = true;
   }
 
@@ -236,8 +247,9 @@ export function createFlip(sets: SetHandle[], camera: PerspectiveCamera, canvas:
       if (drag && step > 0) follow(drag, step);
       for (const sheet of sheets) {
         if (sheet.mode === 'settling') land(sheet, step);
+        ease(sheet, step);
         if (!sheet.moved) continue;
-        sheet.set.setAngle(sheet.theta, sheet.omega, sheet.grip);
+        sheet.set.setAngle(sheet.theta, sheet.omega, sheet.grip, sheet.held);
         sheet.moved = false;
       }
       showHand();
@@ -246,7 +258,7 @@ export function createFlip(sets: SetHandle[], camera: PerspectiveCamera, canvas:
     pose(theta) {
       if (drag) endDrag(false, 0);
       for (const sheet of sheets) {
-        Object.assign(sheet, { theta, omega: 0, grip: 0, moved: true });
+        Object.assign(sheet, { theta, omega: 0, grip: 0, held: 0, moved: true });
         sheet.mode = theta > Math.PI / 2 ? 'open' : 'closed';
         sheet.target = sheet.mode === 'open' ? Math.PI : 0;
       }

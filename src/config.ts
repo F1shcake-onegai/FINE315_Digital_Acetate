@@ -48,7 +48,14 @@ export const config = {
     tint: '#ffffff',        // neutral clear (user); spec had a faint warm #f3f1ec
     wave1: { a: 0.0012, lambda: 0.11, phase: 1.3 },
     wave2: { a: 0.0004, lambda: 0.045, phase: 0.4 },
-    curl: 0.004, sagGain: 0.035, sagMax: 0.2,
+    curl: 0.004,
+    // Sag (§5.5): how far the sheet trails its motion. Spec 0.035 / 0.2 left it looking rigid in
+    // flight; the user wants it to flex a bit while lifted and dropped.
+    sagGain: 0.05, sagMax: 0.35,
+    // (not in spec) Held, the sheet bends under its own weight toward the table on the side it
+    // leans: where it leaves the hinge its angle drops by up to this (rad), times cos θ. It peels
+    // off the paper as it's lifted, hangs straight when upright, and lies flat when down.
+    droop: 0.3,
     thickness: 0.0,         // no refraction offset, Fresnel kept
     metalness: 0,
     envMapIntensity: 1.0,
@@ -169,7 +176,9 @@ export const config = {
     maxOmega: 20,           // (not in spec) rad/s: the drag's angular velocity is clamped to this
     omegaSmoothS: 0.05,     // (not in spec) s: ω eases toward the drag's rate, so sag and release don't flicker
     bounce: 0.3,            // (not in spec) share of ω kept when a landing sheet bounces off the table or paper
-    gripReleaseS: 0.1,      // (not in spec) s: after release, sag's pivot eases from the grabbed point to the hinge
+    // (not in spec) s: the hand takes up the sheet's weight (its bend, acetate.droop) when it grabs and
+    // gives it back when it lets go, while sag's pivot moves from the hand back to the hinge.
+    holdEaseS: 0.12,
     maxStepS: 0.05,         // (not in spec) s: longest time step, so a stalled tab doesn't fling the spring
   },
 
