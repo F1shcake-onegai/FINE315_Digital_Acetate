@@ -16,6 +16,16 @@ Changes from the desktop version:
   pull-to-refresh or rubber-banding.
 - The dev server runs on port 5174, so it can run next to the desktop one (5173).
 
+## Live site
+
+https://f1shcake-onegai.github.io/FINE315_Digital_Acetate/
+
+Every push to `main` builds the viewer and publishes it there
+(`.github/workflows/pages.yml`). This needs GitHub Pages switched to GitHub Actions once:
+repository **Settings → Pages → Build and deployment → Source: GitHub Actions**. The build uses
+relative asset paths (`base: './'` in `vite.config.ts`), so it also works from any other folder
+or static host.
+
 ## Status
 
 | Milestone | State |
