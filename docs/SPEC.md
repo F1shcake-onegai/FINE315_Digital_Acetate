@@ -2,6 +2,13 @@
 
 Realistic web viewer: two film contact sheets, each with a clear acetate sheet taped over it. The user grabs the acetate and flips it open. Zoom and pan are supported. Desktop browser only.
 
+> **Mobile copy (user, 2026-09-30).** This repository is the phone version, copied from the desktop viewer at commit 601ba73. Everything below still applies, except:
+> - **One sheet on screen at a time.** The view frames the current sheet's closed acetate to fill the screen's tighter side (margin 1.08, `config.mobile`) in portrait or landscape, and turning the phone reframes it. The other sheet's set is hidden and can't be grabbed.
+> - **Page buttons.** ← → at the bottom right (and the arrow keys) switch between sheet A and sheet B. The view slides across in 0.45 s with both sheets shown, then hides the one it left.
+> - **View controls (§6.2).** Pan stays within 0.2 m left and right of the current sheet. `Reset`, key `0` and double-clicking the table reframe the current sheet, sliding there.
+> - **UI (§6.4).** Buttons are at least 44 px and kept clear of notches and the home bar (`env(safe-area-inset-*)`, `viewport-fit=cover`). Pull-to-refresh, rubber-banding and tap highlights are off.
+> - The dev server runs on port 5174, next to the desktop one on 5173.
+
 ## How to use this file (Claude Code)
 
 - Save this file as `docs/SPEC.md` in an empty repo.

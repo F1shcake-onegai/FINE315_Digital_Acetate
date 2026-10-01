@@ -170,6 +170,13 @@ export const config = {
     near: 0.01, far: 10,    // (not in spec)
   },
 
+  // Mobile copy (user): one sheet on screen at a time; ← → at the bottom right switch pages.
+  mobile: {
+    fitMargin: 1.08,        // a page's closed acetate fills the screen's tighter side to 1 / fitMargin
+    panX: 0.2,              // m: pan reach left and right of the current sheet
+    slideS: 0.45,           // s: switching pages slides the view across this long
+  },
+
   // §6.1, §7.2
   flip: {
     // D: spec 20 is damped enough that the sheet creeps onto the table without the overshoot it

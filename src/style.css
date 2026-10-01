@@ -3,6 +3,8 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;  /* no pull-to-refresh or rubber-banding on phones */
+  -webkit-tap-highlight-color: transparent;
 }
 
 #scene {
@@ -19,39 +21,68 @@ body {
   font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: #2b2926;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
+/* Buttons sized for fingers (44 px), kept clear of notches and the home bar. */
 .view-buttons {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
   display: flex;
-  gap: 6px;
+  gap: 8px;
   pointer-events: auto;
 }
 
-.view-buttons button {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 12px;
+.view-buttons button,
+.page-buttons button {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 14px;
   border: 1px solid rgb(0 0 0 / 0.12);
-  border-radius: 8px;
-  background: rgb(255 255 255 / 0.78);
-  color: inherit;
-  font: inherit;
-  font-size: 15px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.8);
+  color: #2b2926;
+  font: 17px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.view-buttons button:hover {
+.view-buttons button:hover,
+.page-buttons button:hover:not(:disabled) {
   background: #fff;
+}
+
+.page-buttons {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+}
+
+.page-buttons button {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 26px;
+  font-size: 22px;
+}
+
+.page-buttons button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .hand {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 1;
+  z-index: 2;
   display: none;
   pointer-events: none;
   will-change: transform;

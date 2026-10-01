@@ -100,6 +100,7 @@ export function createFlip(sets: SetHandle[], camera: PerspectiveCamera, canvas:
   function hit(ray: Ray): { sheet: Sheet; distance: number } | null {
     let first: { sheet: Sheet; distance: number; t: number } | null = null;
     for (const sheet of sheets) {
+      if (!sheet.set.group.visible) continue;  // the page not shown
       const found = hitSheet(sheet.theta, inSet(sheet, ray));
       if (found && (!first || found.t < first.t)) first = { sheet, ...found };
     }

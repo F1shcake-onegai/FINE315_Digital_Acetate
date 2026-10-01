@@ -1,7 +1,20 @@
-# Contact sheets under acetate
+# Contact sheets under acetate (mobile)
 
-A three.js viewer for two film contact sheets lying on a table, each under a clear acetate sheet
-hinged along its top edge that you can grab and flip open. Built to `docs/SPEC.md`.
+The phone version of the viewer in `../fine315_acetate_simulation`, copied from it on 2026-09-30
+(commit 601ba73). Two film contact sheets, each under a clear acetate sheet hinged along its top
+edge that you can grab and flip open, shown **one sheet at a time**: the ← → buttons at the
+bottom right switch between sheet A and sheet B. Built to `docs/SPEC.md`; the mobile changes are
+listed at its top.
+
+Changes from the desktop version:
+
+- One sheet on screen at a time, framed to fit the screen in portrait or landscape; turning the
+  phone reframes it. Switching slides the view across; the other sheet is hidden and can't be
+  grabbed. Panning stays within reach of the current sheet.
+- ← → at the bottom right (also the arrow keys), and `Reset` reframes the current sheet.
+- Buttons sized for fingers (44 px and up), clear of notches and the home bar; no
+  pull-to-refresh or rubber-banding.
+- The dev server runs on port 5174, so it can run next to the desktop one (5173).
 
 ## Status
 
@@ -22,20 +35,26 @@ Needs Node 20.19 or newer (developed on 24).
 
 ```sh
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5174
 npm run build      # type-check, then production build into dist/
 npm run preview    # serve dist/
 npm run typecheck
 ```
 
+To open it on a phone on the same Wi-Fi, start it with `npm run dev -- --host` and open the
+"Network" address Vite prints (Windows may ask to allow Node through the firewall). For a link that
+works anywhere, deploy `dist/` to any static host.
+
 ## Controls
 
-- Scroll or pinch: zoom toward the cursor (0.06–1.4 m)
-- Middle-drag (or right-drag, or two fingers on touch): pan along the table
-- Left-drag an acetate to flip it about its top edge; over a sheet the pointer becomes a hand,
-  pinching while you hold it. Let go and it springs open or shut, whichever way it was going.
-- Click an acetate, or press `1` / `2`, to flip sheet A / B
-- `−` `+` `Reset` buttons, keys `-` `+` `0`, double-click the table: zoom and reset
+- On a phone: drag an acetate with one finger to flip it about its top edge; let go and it
+  springs open or shut, whichever way it was going. Tap it to flip it. Pinch to zoom, drag with
+  two fingers to pan.
+- ← → at the bottom right (or the arrow keys): show sheet A or B
+- With a mouse: scroll to zoom toward the cursor (0.06–1.4 m), middle- or right-drag to pan,
+  left-drag or click an acetate to flip it (over a sheet the pointer becomes a hand); `1` / `2`
+  flip sheet A / B
+- `−` `+` `Reset` buttons, keys `-` `+` `0`, double-click the table: zoom and reframe the sheet
 
 ## Assets
 

@@ -20,6 +20,7 @@ import { bindViewShortcuts, createViewControls } from './interaction/viewControl
 import { createParallax } from './interaction/parallax';
 import { createFlip, type Flip } from './interaction/flip';
 import { createOverlay } from './ui/overlay';
+import { createPager } from './ui/pager';
 import { createHand } from './ui/hand';
 import { bindDevPose, exposeDevHandle, markReady } from './dev';
 
@@ -59,6 +60,15 @@ let quality: Quality | null = null;  // likewise
 bindViewShortcuts(view, canvas, (event) => flip?.isOverAcetate(event) ?? false);
 createOverlay(view);
 
+// Turning the phone reframes the page for the new shape.
+let portrait = window.innerHeight >= window.innerWidth;
+window.addEventListener('resize', () => {
+  const nowPortrait = window.innerHeight >= window.innerWidth;
+  if (nowPortrait === portrait) return;
+  portrait = nowPortrait;
+  view.reset();
+});
+
 exposeDevHandle({ renderer, scene, camera }, view);
 
 const timer = new Timer();
@@ -67,7 +77,7 @@ let setsAdded = false;
 renderer.setAnimationLoop((time) => {
   timer.update(time);
   const dt = timer.getDelta();
-  view.update();
+  view.update(dt);
   parallax.update();
   flip?.update(dt);
   quality?.update(dt);
@@ -81,7 +91,9 @@ renderer.setAnimationLoop((time) => {
 });
 
 /**
- * Both sets side by side. Scans come from public/assets (procedural placeholders when missing);
+ * Both sets side by side, shown one page at a time (mobile copy): ← → switch, and the view slides
+ * across with both visible, then hides the one it left. Scans come from public/assets (procedural
+ * placeholders when missing);
  * each acetate gets its own smudges and, if present, the user's drawing; each tape (unless hidden)
  * its own torn ends.
  */
@@ -109,6 +121,12 @@ async function addSets(): Promise<void> {
     return createSet(sheet.name, sheet.x, { scan: sheet.scan, acetateMaterial, rimMaterial, footprint, tapeMaterial });
   });
   scene.add(...sets.map((set) => set.group));
+  const showOnly = (index: number) => sets.forEach((set, i) => { set.group.visible = i === index; });
+  showOnly(0);
+  createPager(sets.length, (index) => {
+    for (const set of sets) set.group.visible = true;
+    view.showPage(sheets[index].x, true, () => showOnly(index));
+  });
   flip = createFlip(sets, camera, renderer.domElement, hand);
   quality = createQuality(renderer, acetateMaterials);
   bindDevPose(flip);
