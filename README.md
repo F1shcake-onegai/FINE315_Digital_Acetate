@@ -14,6 +14,9 @@ Changes from the desktop version:
 - ← → at the bottom right (also the arrow keys), and `Reset` reframes the current sheet.
 - Buttons sized for fingers (44 px and up), clear of notches and the home bar; no
   pull-to-refresh or rubber-banding.
+- A loading note until the sheets are on screen. The scans download first; the fingerprints and
+  scratches on the acetates (about half the download) follow, built in a worker so the page keeps
+  responding.
 - The dev server runs on port 5174, so it can run next to the desktop one (5173).
 
 ## Live site

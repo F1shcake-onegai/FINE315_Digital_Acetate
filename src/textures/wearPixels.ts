@@ -1,0 +1,159 @@
+import { MathUtils } from 'three';
+import { config } from '../config';
+import { createRng, heightToNormals, randInt, randRange } from './procedural';
+
+// The acetate wear maps' pixel work. It normally runs in a worker (wearWorker.ts), or on the main
+// thread where workers can't decode images (wear.ts), so nothing here touches the DOM or textures.
+
+/** One ambientCG mask as grey levels 0–1. The masks are tileable. */
+export interface Mask {
+  width: number;
+  height: number;
+  values: Float32Array;
+}
+
+interface WearSources {
+  fingerprints: Mask[];
+  spots: Mask | null;
+  scratches: Mask | null;
+}
+
+/** An RGBA image for a DataTexture. */
+export interface Pixels {
+  data: Uint8Array;
+  width: number;
+  height: number;
+}
+
+/** Each sheet's smudges, the shared scratch normals, and the masks that were missing. */
+export interface WearPixels {
+  smudges: (Pixels | null)[];
+  scratches: Pixels | null;
+  missing: string[];
+}
+
+/** The ambientCG masks named in config.acetate.wear, as paths under public/. */
+export function wearPaths(): string[] {
+  const wear = config.acetate.wear;
+  return [wear.spots, wear.scratches, ...wear.fingerprints];
+}
+
+/** A decoded mask image as grey levels (its red channel). */
+export function maskFromPixels({ width, height, data }: { width: number; height: number; data: Uint8ClampedArray }): Mask {
+  const values = new Float32Array(width * height);
+  for (let i = 0; i < values.length; i++) values[i] = data[i * 4] / 255;
+  return { width, height, values };
+}
+
+/**
+ * The wear maps for `sheets` sheets, from the masks loaded in wearPaths() order (null = missing).
+ * `pause` runs before each of the long steps, a third of a second or so each on a desktop.
+ */
+export async function buildWear(masks: (Mask | null)[], sheets: number, pause = async () => {}): Promise<WearPixels> {
+  const [spots, scratches, ...fingerprints] = masks;
+  const sources = { fingerprints: fingerprints.filter((mask) => mask !== null), spots, scratches };
+  const missing = wearPaths().filter((_, i) => !masks[i]);
+  await pause();
+  const built: WearPixels = { smudges: [], scratches: scratchNormalPixels(sources), missing };
+  for (let sheet = 0; sheet < sheets; sheet++) {
+    await pause();
+    built.smudges.push(smudgePixels(sources, sheet));
+  }
+  return built;
+}
+
+/**
+ * One sheet's smudges in acetate UV space: fingerprints showing through a few soft windows, over a
+ * faint water-spot haze. Stored for roughnessMap and clearcoatRoughnessMap (both read G) as
+ * clean + (1 − clean) · smudge, where clean = roughness / smudgeRoughness, so the material's
+ * roughness values are the heaviest smudge and the map scales them down elsewhere.
+ */
+function smudgePixels(sources: WearSources, sheet: number): Pixels | null {
+  const { w, h, roughness } = config.acetate;
+  const wear = config.acetate.wear;
+  const fingerprints = sources.fingerprints.length > 0 ? sources.fingerprints[sheet % sources.fingerprints.length] : null;
+  if (!fingerprints && !sources.spots) return null;
+
+  const rng = createRng(wear.seeds[sheet % wear.seeds.length]);
+  const windows = Array.from({ length: randInt(rng, wear.fingerprintWindows) }, () => ({
+    x: rng() * w,
+    d: rng() * h,
+    radius: randRange(rng, wear.windowRadius),
+  }));
+
+  const rows = wear.mapPx;
+  const width = Math.round((rows * w) / h);
+  const clean = roughness / wear.smudgeRoughness;
+  const data = new Uint8Array(width * rows * 4);
+  for (let r = 0; r < rows; r++) {
+    const d = (1 - (r + 0.5) / rows) * h;  // distance from the hinge
+    for (let c = 0; c < width; c++) {
+      const x = ((c + 0.5) / width) * w;
+      let smudge = 0;
+      if (fingerprints) {
+        let through = 0;
+        for (const win of windows) {
+          const inside = win.radius - Math.hypot(x - win.x, d - win.d);
+          through = Math.max(through, MathUtils.smoothstep(inside, 0, win.radius * wear.windowFeather));
+        }
+        if (through > 0) smudge += through * sample(fingerprints, x / wear.fingerprintTile, d / wear.fingerprintTile);
+      }
+      if (sources.spots) smudge += wear.spotsWeight * sample(sources.spots, x / wear.spotsTile, d / wear.spotsTile);
+      const g = Math.round((clean + (1 - clean) * Math.min(smudge, 1)) * 255);
+      data.fill(g, (r * width + c) * 4, (r * width + c) * 4 + 4);
+    }
+  }
+  return { data, width, height: rows };
+}
+
+/**
+ * Tileable scratch normals from the scratch mask (bright = scratch, cut into the surface), for
+ * clearcoatNormalMap: scratches live in the glossy top surface and only show where light catches them.
+ */
+function scratchNormalPixels(sources: WearSources): Pixels | null {
+  const mask = sources.scratches;
+  if (!mask) return null;
+  const wear = config.acetate.wear;
+  // Keep the real scratches, not the faint brushing under them, and soften by a pixel.
+  const kept = mask.values.map((v) => MathUtils.smoothstep(v, wear.scratchThreshold, 1));
+  const depth = boxBlur(kept, mask.width, mask.height, wear.scratchBlurPx).map((v) => -v);
+  const data = heightToNormals(depth, mask.width, mask.height, wear.scratchSlopeRms, { rmsOver: 'relief' });
+  return { data, width: mask.width, height: mask.height };
+}
+
+/** Separable box blur with wrap-around (the masks tile). */
+function boxBlur(values: Float32Array, width: number, height: number, radius: number): Float32Array {
+  if (radius < 1) return values;
+  const span = radius * 2 + 1;
+  const pass = (source: Float32Array, horizontal: boolean) => {
+    const out = new Float32Array(source.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let sum = 0;
+        for (let k = -radius; k <= radius; k++) {
+          const sx = horizontal ? (x + k + width) % width : x;
+          const sy = horizontal ? y : (y + k + height) % height;
+          sum += source[sy * width + sx];
+        }
+        out[y * width + x] = sum / span;
+      }
+    }
+    return out;
+  };
+  return pass(pass(values, true), false);
+}
+
+/** Bilinear, wrapping sample of a tileable mask; u and v are in tiles. */
+function sample(mask: Mask, u: number, v: number): number {
+  const fx = (u - Math.floor(u)) * mask.width - 0.5;
+  const fy = (v - Math.floor(v)) * mask.height - 0.5;
+  const x0 = Math.floor(fx);
+  const y0 = Math.floor(fy);
+  const tx = fx - x0;
+  const ty = fy - y0;
+  const at = (x: number, y: number) =>
+    mask.values[((y + mask.height) % mask.height) * mask.width + ((x + mask.width) % mask.width)];
+  const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx;
+  const bottom = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx;
+  return top + (bottom - top) * ty;
+}

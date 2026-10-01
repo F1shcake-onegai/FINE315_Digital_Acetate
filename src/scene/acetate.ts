@@ -6,7 +6,7 @@ import { config } from '../config';
 
 /** One sheet's surface maps; any may be missing. */
 export interface AcetateMaps {
-  /** Smudges, acetate UV space: roughnessMap and clearcoatRoughnessMap (see createSmudgeTexture). */
+  /** Smudges, acetate UV space: roughnessMap and clearcoatRoughnessMap (see smudgePixels in wearPixels.ts). */
   smudge: Texture | null;
   /** Faint creases along the hinge, acetate UV space: normalMap. */
   crease: Texture | null;
@@ -35,8 +35,6 @@ export interface Acetate {
  */
 export function createAcetateMaterial(envMap: Texture, maps: AcetateMaps): MeshPhysicalMaterial {
   const a = config.acetate;
-  // The smudge map scales roughness down from the heaviest smudge (see createSmudgeTexture).
-  const smudged = maps.smudge ? a.wear.smudgeRoughness / a.roughness : 1;
   const scratch = a.wear.scratchNormalScale;
   const material = new MeshPhysicalMaterial({
     color: a.tint,
@@ -45,23 +43,35 @@ export function createAcetateMaterial(envMap: Texture, maps: AcetateMaps): MeshP
     thickness: a.thickness,
     ior: a.ior,
     metalness: a.metalness,
-    roughness: a.roughness * smudged,
-    roughnessMap: maps.smudge,
     clearcoat: a.clearcoat,
     clearcoatMap: maps.paint,
-    clearcoatRoughness: a.clearcoatRoughness * smudged,
-    clearcoatRoughnessMap: maps.smudge,
     normalMap: maps.crease,
     normalScale: new Vector2(a.normalScale, a.normalScale),
-    clearcoatNormalMap: maps.scratches,
     clearcoatNormalScale: new Vector2(scratch, scratch),
     specularIntensityMap: maps.paint,
     envMap,
     envMapIntensity: a.envMapIntensity,
     side: DoubleSide,  // seen from both sides mid-flip
   });
+  applyWear(material, maps.smudge, maps.scratches);
   hazeTransmission(material);
   return material;
+}
+
+/**
+ * Give a sheet its wear, at creation or later once the wear textures have loaded: smudges for the
+ * roughness and clearcoat roughness (the map scales them down from the heaviest smudge, see
+ * smudgePixels in wearPixels.ts) and scratches for the clearcoat normals. Either may be null.
+ */
+export function applyWear(material: MeshPhysicalMaterial, smudge: Texture | null, scratches: Texture | null): void {
+  const a = config.acetate;
+  const smudged = smudge ? a.wear.smudgeRoughness / a.roughness : 1;
+  material.roughness = a.roughness * smudged;
+  material.roughnessMap = smudge;
+  material.clearcoatRoughness = a.clearcoatRoughness * smudged;
+  material.clearcoatRoughnessMap = smudge;
+  material.clearcoatNormalMap = scratches;
+  material.needsUpdate = true;
 }
 
 /** How three samples what's seen through a transmissive surface: blurred by a mip level from the roughness. */

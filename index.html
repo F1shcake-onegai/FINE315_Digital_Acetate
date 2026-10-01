@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" href="data:," />
     <title>Contact Sheets</title>
+    <!-- Start the scans downloading while the script loads and starts up. -->
+    <link rel="preload" as="image" href="/assets/sheet-a.jpg" />
+    <link rel="preload" as="image" href="/assets/sheet-b.jpg" />
   </head>
   <body>
     <canvas id="scene"></canvas>
+    <p id="loading" class="loading">Loading the contact sheets…</p>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

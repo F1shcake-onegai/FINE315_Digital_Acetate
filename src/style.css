@@ -106,3 +106,23 @@ body {
 .hand.pinching .hand-pinch {
   display: block;
 }
+
+/* Shown from the first paint until the sheets are on screen (src/ui/loading.ts). */
+.loading {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0 16px;
+  transform: translateY(-50%);
+  font: 15px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #6b6760;
+  text-align: center;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.loading.done {
+  opacity: 0;
+}

@@ -1,136 +1,78 @@
-import { MathUtils, type DataTexture } from 'three';
+import type { DataTexture } from 'three';
 import { config } from '../config';
 import { imagePixels, loadImage } from './loader';
-import { createRng, dataTexture, heightToNormals, randInt, randRange } from './procedural';
+import { dataTexture } from './procedural';
+import { buildWear, maskFromPixels, wearPaths, type WearPixels } from './wearPixels';
 
-/** One ambientCG mask as grey levels 0–1. The masks are tileable. */
-interface Mask {
-  width: number;
-  height: number;
-  values: Float32Array;
+/**
+ * Each sheet's smudges (roughnessMap and clearcoatRoughnessMap) and the shared scratches
+ * (clearcoatNormalMap); null where their masks are missing.
+ */
+export interface Wear {
+  smudges: (DataTexture | null)[];
+  scratches: DataTexture | null;
 }
 
-export interface WearSources {
-  fingerprints: Mask[];
-  spots: Mask | null;
-  scratches: Mask | null;
-}
-
-/** The ambientCG masks named in config.acetate.wear; a missing one is logged and left out. */
-export async function loadWearSources(): Promise<WearSources> {
-  const wear = config.acetate.wear;
-  const [spots, scratches, ...fingerprints] = await Promise.all(
-    [wear.spots, wear.scratches, ...wear.fingerprints].map(loadMask),
-  );
-  return { fingerprints: fingerprints.filter((mask) => mask !== null), spots, scratches };
-}
-
-async function loadMask(path: string): Promise<Mask | null> {
-  const image = await loadImage(import.meta.env.BASE_URL + path);
-  if (!image) {
-    console.warn(`[assets] public/${path} is missing or unreadable; that wear layer is left out.`);
+/**
+ * The acetates' wear from the ambientCG masks in config.acetate.wear (a missing one is logged and
+ * left out): `sheets` smudge maps and the shared scratches. Building them takes about a second of
+ * CPU on a desktop and several on a phone, so a worker does it while the page keeps running; where
+ * a worker can't decode images, it runs here instead, a step per frame.
+ */
+export async function loadWear(sheets: number, anisotropy: number): Promise<Wear> {
+  const built = (await inWorker(sheets).catch((error: unknown) => {
+    console.info('[assets] building the wear maps on the main thread:', error);
     return null;
-  }
-  const { width, height, data } = imagePixels(image);
-  const values = new Float32Array(width * height);
-  for (let i = 0; i < values.length; i++) values[i] = data[i * 4] / 255;
-  return { width, height, values };
-}
+  })) ?? (await onMainThread(sheets));
+  for (const path of built.missing) console.warn(`[assets] public/${path} is missing or unreadable; that wear layer is left out.`);
 
-/**
- * One sheet's smudges in acetate UV space: fingerprints showing through a few soft windows, over a
- * faint water-spot haze. Stored for roughnessMap and clearcoatRoughnessMap (both read G) as
- * clean + (1 − clean) · smudge, where clean = roughness / smudgeRoughness, so the material's
- * roughness values are the heaviest smudge and the map scales them down elsewhere.
- */
-export function createSmudgeTexture(sources: WearSources, sheet: number, anisotropy: number): DataTexture | null {
-  const { w, h, roughness } = config.acetate;
-  const wear = config.acetate.wear;
-  const fingerprints = sources.fingerprints.length > 0 ? sources.fingerprints[sheet % sources.fingerprints.length] : null;
-  if (!fingerprints && !sources.spots) return null;
-
-  const rng = createRng(wear.seeds[sheet % wear.seeds.length]);
-  const windows = Array.from({ length: randInt(rng, wear.fingerprintWindows) }, () => ({
-    x: rng() * w,
-    d: rng() * h,
-    radius: randRange(rng, wear.windowRadius),
-  }));
-
-  const rows = wear.mapPx;
-  const width = Math.round((rows * w) / h);
-  const clean = roughness / wear.smudgeRoughness;
-  const data = new Uint8Array(width * rows * 4);
-  for (let r = 0; r < rows; r++) {
-    const d = (1 - (r + 0.5) / rows) * h;  // distance from the hinge
-    for (let c = 0; c < width; c++) {
-      const x = ((c + 0.5) / width) * w;
-      let smudge = 0;
-      if (fingerprints) {
-        let through = 0;
-        for (const win of windows) {
-          const inside = win.radius - Math.hypot(x - win.x, d - win.d);
-          through = Math.max(through, MathUtils.smoothstep(inside, 0, win.radius * wear.windowFeather));
-        }
-        if (through > 0) smudge += through * sample(fingerprints, x / wear.fingerprintTile, d / wear.fingerprintTile);
-      }
-      if (sources.spots) smudge += wear.spotsWeight * sample(sources.spots, x / wear.spotsTile, d / wear.spotsTile);
-      const g = Math.round((clean + (1 - clean) * Math.min(smudge, 1)) * 255);
-      data.fill(g, (r * width + c) * 4, (r * width + c) * 4 + 4);
-    }
-  }
-  return dataTexture(data, width, rows, anisotropy, false);
-}
-
-/**
- * Tileable scratch normals from the scratch mask (bright = scratch, cut into the surface), for
- * clearcoatNormalMap: scratches live in the glossy top surface and only show where light catches them.
- */
-export function createScratchNormalTexture(sources: WearSources, anisotropy: number): DataTexture | null {
-  const mask = sources.scratches;
-  if (!mask) return null;
-  const wear = config.acetate.wear;
-  // Keep the real scratches, not the faint brushing under them, and soften by a pixel.
-  const kept = mask.values.map((v) => MathUtils.smoothstep(v, wear.scratchThreshold, 1));
-  const depth = boxBlur(kept, mask.width, mask.height, wear.scratchBlurPx).map((v) => -v);
-  const normals = heightToNormals(depth, mask.width, mask.height, wear.scratchSlopeRms, { rmsOver: 'relief' });
-  const texture = dataTexture(normals, mask.width, mask.height, anisotropy);
-  texture.repeat.set(config.acetate.w / wear.scratchTile, config.acetate.h / wear.scratchTile);
-  return texture;
-}
-
-/** Separable box blur with wrap-around (the masks tile). */
-function boxBlur(values: Float32Array, width: number, height: number, radius: number): Float32Array {
-  if (radius < 1) return values;
-  const span = radius * 2 + 1;
-  const pass = (source: Float32Array, horizontal: boolean) => {
-    const out = new Float32Array(source.length);
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        let sum = 0;
-        for (let k = -radius; k <= radius; k++) {
-          const sx = horizontal ? (x + k + width) % width : x;
-          const sy = horizontal ? y : (y + k + height) % height;
-          sum += source[sy * width + sx];
-        }
-        out[y * width + x] = sum / span;
-      }
-    }
-    return out;
+  const { w, h, wear } = config.acetate;
+  const scratches = built.scratches && dataTexture(built.scratches.data, built.scratches.width, built.scratches.height, anisotropy);
+  scratches?.repeat.set(w / wear.scratchTile, h / wear.scratchTile);
+  return {
+    smudges: built.smudges.map((pixels) => pixels && dataTexture(pixels.data, pixels.width, pixels.height, anisotropy, false)),
+    scratches,
   };
-  return pass(pass(values, true), false);
 }
 
-/** Bilinear, wrapping sample of a tileable mask; u and v are in tiles. */
-function sample(mask: Mask, u: number, v: number): number {
-  const fx = (u - Math.floor(u)) * mask.width - 0.5;
-  const fy = (v - Math.floor(v)) * mask.height - 0.5;
-  const x0 = Math.floor(fx);
-  const y0 = Math.floor(fy);
-  const tx = fx - x0;
-  const ty = fy - y0;
-  const at = (x: number, y: number) =>
-    mask.values[((y + mask.height) % mask.height) * mask.width + ((x + mask.width) % mask.width)];
-  const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx;
-  const bottom = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx;
-  return top + (bottom - top) * ty;
+/**
+ * Stand-ins for the wear maps until they're built (they follow the sheets, see addSets in main.ts):
+ * a clean smudge map and flat scratch normals. They look the same as no maps, but the acetate's
+ * shader is built with the maps from the start, so swapping the real ones in doesn't recompile it.
+ */
+export function createCleanWear(): { smudge: DataTexture; scratches: DataTexture } {
+  const clean = Math.round((config.acetate.roughness / config.acetate.wear.smudgeRoughness) * 255);
+  return {
+    smudge: dataTexture(new Uint8Array([clean, clean, clean, 255]), 1, 1, 1, false),
+    scratches: dataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1, 1),
+  };
+}
+
+/** buildWear in a worker (wearWorker.ts), which fetches and decodes the masks itself. */
+function inWorker(sheets: number): Promise<WearPixels> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./wearWorker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (event: MessageEvent<WearPixels | { error: string }>) => {
+      worker.terminate();
+      if ('error' in event.data) reject(new Error(event.data.error));
+      else resolve(event.data);
+    };
+    worker.onerror = (event) => {
+      event.preventDefault();  // handled: the fallback takes over
+      worker.terminate();
+      reject(new Error(event.message || 'the wear worker failed to start'));
+    };
+    // Absolute URLs: the worker would resolve relative ones against its own script.
+    const urls = wearPaths().map((path) => new URL(import.meta.env.BASE_URL + path, document.baseURI).href);
+    worker.postMessage({ urls, sheets });
+  });
+}
+
+/** The fallback: the same work on the main thread, a frame between the long steps. */
+async function onMainThread(sheets: number): Promise<WearPixels> {
+  const masks = await Promise.all(wearPaths().map(async (path) => {
+    const image = await loadImage(import.meta.env.BASE_URL + path);
+    return image && maskFromPixels(imagePixels(image));
+  }));
+  return buildWear(masks, sheets, () => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 }
