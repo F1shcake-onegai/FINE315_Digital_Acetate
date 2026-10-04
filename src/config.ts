@@ -28,7 +28,7 @@ export const config = {
     curlStart: 0.7,
     curlCorner: { min: 0.4, max: 1.0 },
     rim: { widthPx: 1.5, color: '#ffffff', opacity: 0.35 },
-    artwork: ['assets/acetate-a.png', 'assets/acetate-b.png'],
+    artwork: ['assets/acetate-a.png?v=2', 'assets/acetate-b.png?v=2'], // bump v to bust cdn cache
   },
   layout: { setOffsetX: 0.1495, clearAbove: 0.30 },
   table: {
