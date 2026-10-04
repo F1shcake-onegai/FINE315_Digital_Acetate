@@ -4,116 +4,62 @@ import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { config } from '../config';
 
-/** One sheet's surface maps; any may be missing. */
 export interface AcetateMaps {
-  /** Smudges, acetate UV space: roughnessMap and clearcoatRoughnessMap (see smudgePixels in wearPixels.ts). */
-  smudge: Texture | null;
-  /** Faint creases along the hinge, acetate UV space: normalMap. */
   crease: Texture | null;
-  /** Scratches, tiled: clearcoatNormalMap. */
-  scratches: Texture | null;
-  /** The user's drawing as 1 − alpha over the paper area: transmission, clearcoat and specular maps. */
   paint: Texture | null;
 }
 
 export interface Acetate {
-  /** The sheet in its set's frame, hinged along the paper's far edge; the rim line is a child. */
   mesh: Mesh;
-  /**
-   * Pose the sheet: hinge angle θ (0 closed … π open) of the line from the hinge to the held point,
-   * angular velocity ω in rad/s (sag), `grip`, the held point's distance from the hinge as a
-   * fraction of the sheet, and `held`, how much the hand carries it (1 held … 0 let go). Returns
-   * the sheet's angle where it leaves the hinge, which bends away from θ while held.
-   */
   setPose(theta: number, omega?: number, grip?: number, held?: number): number;
 }
 
-/**
- * §5.3 material: clear, slightly hazy acetate under a glossy clear coat, with smudges, creases and
- * scratches, and the user's strokes as opaque matte paint on top. Reflects its own studio
- * (config.acetateStudio), not the room that lights the prints.
- */
 export function createAcetateMaterial(envMap: Texture, maps: AcetateMaps): MeshPhysicalMaterial {
   const a = config.acetate;
-  const scratch = a.wear.scratchNormalScale;
   const material = new MeshPhysicalMaterial({
     color: a.tint,
     transmission: a.transmission,
     transmissionMap: maps.paint,
     thickness: a.thickness,
     ior: a.ior,
+    roughness: a.roughness,
     metalness: a.metalness,
     clearcoat: a.clearcoat,
+    clearcoatRoughness: a.clearcoatRoughness,
     clearcoatMap: maps.paint,
     normalMap: maps.crease,
     normalScale: new Vector2(a.normalScale, a.normalScale),
-    clearcoatNormalScale: new Vector2(scratch, scratch),
     specularIntensityMap: maps.paint,
     envMap,
     envMapIntensity: a.envMapIntensity,
-    side: DoubleSide,  // seen from both sides mid-flip
+    side: DoubleSide,
   });
-  applyWear(material, maps.smudge, maps.scratches);
   hazeTransmission(material);
   return material;
 }
 
-/**
- * Give a sheet its wear, at creation or later once the wear textures have loaded: smudges for the
- * roughness and clearcoat roughness (the map scales them down from the heaviest smudge, see
- * smudgePixels in wearPixels.ts) and scratches for the clearcoat normals. Either may be null.
- */
-export function applyWear(material: MeshPhysicalMaterial, smudge: Texture | null, scratches: Texture | null): void {
-  const a = config.acetate;
-  const smudged = smudge ? a.wear.smudgeRoughness / a.roughness : 1;
-  material.roughness = a.roughness * smudged;
-  material.roughnessMap = smudge;
-  material.clearcoatRoughness = a.clearcoatRoughness * smudged;
-  material.clearcoatRoughnessMap = smudge;
-  material.clearcoatNormalMap = scratches;
-  material.needsUpdate = true;
-}
-
-/** How three samples what's seen through a transmissive surface: blurred by a mip level from the roughness. */
 const TRANSMISSION_SAMPLE = 'return textureBicubic( transmissionSamplerMap, fragCoord.xy, lod );';
 
-/**
- * See the print through the sheet as hazy plastic shows it: sharp, plus a soft glow of scattered
- * light (config.acetate.haze). three blurs instead, by a mip level tied to the surface roughness,
- * which smears the prints even through clean plastic (edges ~3 px wide at 1600 px). The smudge map
- * raises the roughness toward wear.smudgeRoughness under fingerprints; that raises the glow's
- * share, so they read milky. Reflections keep the full roughness. Warns and leaves three's blur if
- * the shader chunk no longer has the line.
- */
 function hazeTransmission(material: MeshPhysicalMaterial): void {
-  const { roughness, haze, wear } = config.acetate;
+  const { haze } = config.acetate;
   const chunk = ShaderChunk.transmission_pars_fragment;
-  if (!chunk.includes(TRANSMISSION_SAMPLE)) {
-    console.warn('[acetate] three.js transmission chunk changed; what is seen through the sheet keeps three\'s blur.');
-    return;
-  }
+  if (!chunk.includes(TRANSMISSION_SAMPLE)) return;
   const glsl = (v: number) => v.toFixed(4);
-  const smudge = `clamp( ( roughness - ${glsl(roughness)} ) / ${glsl(wear.smudgeRoughness - roughness)}, 0.0, 1.0 )`;
   const patched = chunk.replace(TRANSMISSION_SAMPLE, `return mix(
 			textureLod( transmissionSamplerMap, fragCoord.xy, 0.0 ),
 			textureLod( transmissionSamplerMap, fragCoord.xy, ${glsl(haze.glowLod)} ),
-			${glsl(haze.share)} + ${glsl(haze.smudgeShare)} * ${smudge} );`);
+			${glsl(haze.share)} );`);
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace('#include <transmission_pars_fragment>', patched);
   };
-  material.customProgramCacheKey = () => `acetate-haze-${haze.share}-${haze.smudgeShare}-${haze.glowLod}`;
+  material.customProgramCacheKey = () => `acetate-haze-${haze.share}-${haze.glowLod}`;
 }
 
-/** §5.3 rim: a thin bright line along the sheet's outline, shared by both sheets. Keep .resolution at the canvas' CSS size. */
 export function createRimMaterial(): LineMaterial {
   const { color, widthPx, opacity } = config.acetate.rim;
   return new LineMaterial({ color: new Color(color), linewidth: widthPx, transparent: true, opacity });
 }
 
-/**
- * §5.3 geometry: a segX × segY grid rebuilt from rest coordinates (x across the sheet, d = distance
- * from the hinge, the §5.5 rest lift) whenever the pose changes, never accumulated.
- */
 export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineMaterial): Acetate {
   const a = config.acetate;
   const geometry = new PlaneGeometry(a.w, a.h, a.segX, a.segY);
@@ -121,7 +67,7 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
   const rest = new Float32Array(position.count * 3);
   for (let i = 0; i < position.count; i++) {
     const x = position.getX(i);
-    const d = a.h / 2 - position.getY(i);  // the plane's top row becomes the hinge (d = 0)
+    const d = a.h / 2 - position.getY(i);
     rest[i * 3] = x;
     rest[i * 3 + 1] = d;
     rest[i * 3 + 2] = restLift(x, d / a.h);
@@ -129,9 +75,9 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
 
   const mesh = new Mesh(geometry, material);
   mesh.name = 'acetate';
-  mesh.position.z = -config.paper.h / 2;  // hinge line = the paper's far edge
-  mesh.frustumCulled = false;            // bounds change as the sheet moves
-  mesh.castShadow = false;               // a transmissive mesh would cast a solid shadow (§5.7)
+  mesh.position.z = -config.paper.h / 2;
+  mesh.frustumCulled = false;
+  mesh.castShadow = false;
 
   const ring = outerRing(a.segX, a.segY);
   const ringPositions = new Float32Array(ring.length * 3);
@@ -143,26 +89,17 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
 
   function setPose(theta: number, omega = 0, grip = 0, held = 0): number {
     const z0 = hingeHeight(theta);
-    // Sag (§5.5): the sheet trails its motion in one even arc, its chord angle falling back by
-    // trail · (u − pivot). The arc's strength saturates softly with ω, rather than each point being
-    // clamped, so it stays one smooth curve (the spec's clamp creased the sheet where it cut in, and
-    // its u² profile curled the free edge instead of bending the sheet).
     const trail = a.sagMax * Math.tanh((omega * a.sagGain) / a.sagMax);
-    const pivot = grip * held;  // sag pivots at the hand while held, at the hinge once let go
-    // A held sheet bends under its own weight toward the table on whichever side it leans (cos θ):
-    // it hangs straight when upright and stays flat when lying down.
+    const pivot = grip * held;
     const droop = -a.droop * held * Math.cos(theta);
     for (let i = 0; i < position.count; i++) {
       const d = rest[i * 3 + 1];
       const lift = rest[i * 3 + 2];
       const u = d / a.h;
       const bent = -trail * (u - pivot) + droop * droopShape(u, grip);
-      // No part passes through the paper (0) or the table (π); where a bending sheet meets them
-      // it rounds onto the surface. At rest nothing bends and the limit is exact.
       const angle = ontoSurface(theta + bent, Math.abs(bent) * a.contactSoftness);
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
-      // |cos| keeps the bulge facing away from the surface on both sides (§5.5).
       position.setXYZ(i, rest[i * 3], z0 + lift * Math.abs(cos) + d * sin, d * cos - lift * sin);
     }
     position.needsUpdate = true;
@@ -183,38 +120,22 @@ export function createAcetate(material: MeshPhysicalMaterial, rimMaterial: LineM
   return { mesh, setPose };
 }
 
-/** §5.5 z0: height of the sheet's hinge side, on the paper when closed and on the table when open. */
 export function hingeHeight(theta: number): number {
   const a = config.acetate;
   return MathUtils.lerp(config.paper.t + a.gap, a.gap, theta / Math.PI);
 }
 
-/**
- * How far a held sheet's chord angle droops at u for a hand at `grip` (both fractions of the sheet
- * from the hinge). Between the hinge and the hand it sags in a parabola: it leaves the hinge flatter
- * than the line to the hand and reaches the hand steeper by as much. Past the hand the free part
- * carries on at that slope and hangs (acetate.droopHang), so the sheet curves through the hand
- * instead of creasing there.
- */
 function droopShape(u: number, grip: number): number {
   if (u <= grip) return grip - u;
   const past = u - grip;
   return (past * ((config.acetate.droopHang * past) / 2 - grip)) / u;
 }
 
-/**
- * Keep a chord angle between the paper (0) and the table (π). Within `soft` of either limit the
- * sheet eases onto the surface (a smooth blend) instead of meeting it at a corner; 0 is a hard limit.
- */
 function ontoSurface(angle: number, soft: number): number {
   const above = (x: number) => (x >= soft ? x : x <= -soft ? 0 : (x + soft) ** 2 / (4 * soft));
   return Math.PI - above(Math.PI - above(angle));
 }
 
-/**
- * §5.5 rest shape, lift only (≥ 0): two waves across the sheet, held flat near the tape, and the
- * free corners curling up. u is the distance from the hinge as a fraction of the sheet's length.
- */
 function restLift(x: number, u: number): number {
   const a = config.acetate;
   const wave = ({ a: amplitude, lambda, phase }: { a: number; lambda: number; phase: number }) =>
@@ -225,7 +146,6 @@ function restLift(x: number, u: number): number {
   return (wave(a.wave1) + wave(a.wave2)) * hold + a.curl * curl;
 }
 
-/** Grid vertex indices around the border, once round and closed: hinge edge, right side, free edge, left side. */
 function outerRing(segX: number, segY: number): number[] {
   const columns = segX + 1;
   const ring: number[] = [];

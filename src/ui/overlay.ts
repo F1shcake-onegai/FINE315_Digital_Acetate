@@ -1,6 +1,5 @@
 import type { ViewControls } from '../interaction/viewControls';
 
-/** §6.4: − + Reset buttons top-right. (The bottom-left usage hint was removed at the user's request.) */
 export function createOverlay(view: ViewControls): void {
   const overlay = document.createElement('div');
   overlay.className = 'overlay';

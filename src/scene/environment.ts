@@ -6,10 +6,6 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { config } from '../config';
 
-/**
- * §3: scene.environment is a PMREM of RoomEnvironment, swapped for the optional
- * public/assets/env.hdr once that loads. A missing HDRI is logged and the room stays.
- */
 export function applyEnvironment(renderer: WebGLRenderer, scene: Scene): void {
   const pmrem = new PMREMGenerator(renderer);
   const room = new RoomEnvironment();
@@ -29,22 +25,16 @@ export function applyEnvironment(renderer: WebGLRenderer, scene: Scene): void {
     },
     undefined,
     () => {
-      console.warn(`[assets] optional public/${path} is missing or unreadable; using RoomEnvironment.`);
+      console.warn(new Error(`missing ${path}`));
       pmrem.dispose();
     },
   );
 }
 
-/**
- * What the acetate reflects (config.acetateStudio): a dark room with a light floor and a few
- * softboxes, pre-filtered with PMREM. Keeps the flat sheet from mirroring the bright room over
- * the prints while leaving highlights for bends, tilts and edges.
- */
 export function createAcetateEnvironment(renderer: WebGLRenderer): Texture {
   const studio = config.acetateStudio;
   const scene = new Scene();
 
-  // BoxGeometry groups: +x, −x, +y, −y (floor), +z, −z; seen from inside.
   const wall = new MeshBasicMaterial({ color: studio.wallColor, side: BackSide });
   const floor = new MeshBasicMaterial({
     color: new Color(studio.floor.color).multiplyScalar(studio.floor.intensity),

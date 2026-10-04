@@ -1,367 +1,129 @@
-/**
- * Every tunable number lives here: docs/SPEC.md §12 plus every other number the spec names.
- * Scene code reads this object and keeps no magic numbers of its own.
- *
- * Units: meters, radians and seconds unless the key says otherwise (…Deg, …Px, …Mm, …Ms, …S).
- * World frame: Y up, table surface at y = 0, origin = center of both sets.
- * Each set's hinge (the taped top edge) is its far edge, toward −z; the viewer is on +z.
- * "(not in spec)" marks starting values picked during implementation. Tune by eye.
- *
- * "locked" marks the tonal look the user approved on 2026-09-29 (docs/SPEC.md → Decisions →
- * Look; reference render docs/look-reference.jpg). Don't change those without the user's approval.
- */
 export const config = {
-  surface: 'table' as 'table' | 'wall',
-
-  // §3, §5.2 — the real prints, measured from the scans' film edge print (38 mm per frame);
-  // 11:14 like the scans. The spec started at 8×10 in (0.203 × 0.254).
   paper: {
-    // Resin-coated pearl paper (Ilford MG RC Pearl): smooth and semi-matte, no grain.
-    // The spec had roughness 0.55 with a paperGrain normal and roughness map.
     w: 0.231, h: 0.294, t: 0.00025,
-    roughness: 0.4,         // locked
-    // (not in spec) Half-strength reflection: the bright room's sheen had turned the prints'
-    // blacks grey (29/255); at 0.5 they render ~9, matching the scans. Midtones and whites stay.
+    roughness: 0.15, // RC pearl
     specularIntensity: 0.5, // locked
-    envMapIntensity: 0.6,   // locked
-    edgeColor: '#f4f2ee',   // side faces of the box
+    envMapIntensity: 0.6, // locked
+    edgeColor: '#f4f2ee',
   },
-
-  // §3, §5.3, §5.5 — paper + 4 mm overhang left/right + 10 mm at the bottom; top edges
-  // aligned at the hinge.
   acetate: {
     w: 0.239, h: 0.304, segX: 60, segY: 80, gap: 0.0003,
     ior: 1.48, clearcoat: 1, clearcoatRoughness: 0.08,
-    // Clear but slightly hazy (user): the base roughness softens what's seen through the sheet
-    // (spec 0.08 is clear; above ~0.1 the frames go soft) while the clearcoat keeps the surface
-    // highlights crisp; transmission just under 1 adds a faint milky scatter.
     roughness: 0.06,
     transmission: 0.99,
-    // (not in spec) What's seen through the sheet. Slightly hazy plastic lying on a print passes it
-    // sharp and scatters a little light into a soft glow, so instead of three's roughness-driven
-    // blur (0.5 of it left the prints ~3 px soft: too blurry, user) the print is sampled sharp and
-    // a blurred copy is mixed in: `share` of it everywhere, rising by `smudgeShare` under the
-    // heaviest fingerprint, which reads milky. `glowLod` is the glow's width, as a mip level of the
-    // screen-sized transmission buffer (2 = a quarter resolution).
-    haze: { share: 0.05, smudgeShare: 0.25, glowLod: 2 },
+    haze: { share: 0.05, glowLod: 2 }, // transmission blur mix
     normalScale: 0.05,
-    tint: '#ffffff',        // neutral clear (user); spec had a faint warm #f3f1ec
-    // Flat at rest (user, 2026-09-30: "the acetate is usually flat on paper"): the rest shape's
-    // waves and corner curl are off, so a sheet lying still is flat and shows no wave streaks; it
-    // bends only while lifted and dropped. M3's values were a 1.2 and 0.4 mm, curl 0.004.
+    tint: '#ffffff',
     wave1: { a: 0, lambda: 0.11, phase: 1.3 },
     wave2: { a: 0, lambda: 0.045, phase: 0.4 },
     curl: 0,
-    // Sag (§5.5): how far the sheet trails its motion. The user wants it to flex a bit while flipped,
-    // but in smooth curves, never creasing ("no carvings"): it bends in one even arc whose strength
-    // saturates smoothly. sagMax is the most the free edge's chord angle trails (rad); the sheet's
-    // tangent there trails twice that. The spec clamped each point at ±0.2 on a u² profile, which
-    // creased the sheet where the clamp cut in and curled the free edge.
     sagGain: 0.05, sagMax: 0.22,
-    // (not in spec) Where a bending sheet meets the paper or table, the contact rounds over an angle
-    // this share of the local bend, so it curves onto the surface instead of folding onto it.
     contactSoftness: 0.5,
-    // (not in spec) Held, the sheet bends under its own weight toward the table on the side it
-    // leans: where it leaves the hinge its angle drops by up to this (rad), times cos θ. It peels
-    // off the paper as it's lifted, hangs straight when upright, and lies flat when down.
     droop: 0.3,
-    droopHang: 2,           // (not in spec) how fast the part past the hand turns down, per sheet length
-    thickness: 0.0,         // no refraction offset, Fresnel kept
+    droopHang: 2,
+    thickness: 0.0,
     metalness: 0,
     envMapIntensity: 1.0,
-    normalScaleRange: { min: 0.02, max: 0.08 },
-    roughnessMapRange: { min: 0.04, max: 0.25 },  // smudge map; above ~0.1 the frames go soft
-    holdEnd: 0.35,          // env = smoothstep(0, holdEnd, u): the tape holds it flat near the hinge
-    curlStart: 0.7,         // curl grows from u = curlStart to `curl` at the free edge
-    // smoothstep over |x| / (W/2): only the free corners lift. Spec 0.25–0.5 lifted all but the
-    // middle 6 cm of the free edge, leaving a saddle that caught light as a bright "Λ".
+    holdEnd: 0.35,
+    curlStart: 0.7,
     curlCorner: { min: 0.4, max: 1.0 },
     rim: { widthPx: 1.5, color: '#ffffff', opacity: 0.35 },
-    fresnelTestDeg: 80,     // M2 dev toggle: tilt the flat sheet to check the Fresnel flash
-
-    // M3 wear, from the ambientCG scans (user), composed per sheet into a few marks instead of
-    // tiling the dense scans. (not in spec: the spec generates these procedurally, §4.3)
-    wear: {
-      fingerprints: ['assets/wear/Fingerprints001_Roughness.png', 'assets/wear/Fingerprints002_Roughness.png'],
-      spots: 'assets/wear/SurfaceImperfections001_Opacity.png',
-      scratches: 'assets/wear/Scratches005_Opacity.png',
-      mapPx: 1024,          // long side of each sheet's baked smudge map
-      seeds: [11, 23],      // per sheet (A, B)
-      fingerprintTile: 0.125,                     // m of sheet per fingerprint tile: prints ≈ 16 mm
-      fingerprintWindows: { min: 3, max: 5 },     // soft windows the fingerprints show through
-      windowRadius: { min: 0.012, max: 0.028 },   // m
-      windowFeather: 0.6,                         // fraction of a window's radius that fades out
-      spotsTile: 0.2, spotsWeight: 0.1,           // faint water-spot haze everywhere
-      smudgeRoughness: 0.15, // base and clearcoat roughness scale up to this under the heaviest smudge
-      scratchTile: 0.15,    // m of sheet per scratch tile
-      scratchThreshold: 0.35, // mask level below which it's faint brushing, not a scratch: dropped
-      scratchBlurPx: 1,     // soften the scratch mask so its normals don't stipple
-      scratchSlopeRms: 0.6, // scratch normal-map strength before clearcoatNormalScale
-      scratchNormalScale: 0.1,
-    },
-
-    // The user's drawing: white strokes on a transparent PNG, drawn over the scan (same canvas),
-    // painted on the sheet's top surface as opaque matte white. Optional; missing = clear sheet.
     artwork: ['assets/acetate-a.png', 'assets/acetate-b.png'],
   },
-
-  // §3, §5.4 — kraft paper tape across the hinge: half on the acetate's top face, the other half
-  // wrapped over the top edge onto the back of the paper (user), so the print's face stays bare
-  // when the sheet is open.
-  tape: {
-    // Hidden (user, 2026-09-29): the sheet still hinges along the top edge, but no tape is drawn
-    // and its textures aren't loaded. true brings the kraft strip back.
-    visible: false,
-    w: 0.025, overhang: 0.005, color: '#b9834a', roughness: 0.95,
-    lift: 0.0001,           // tape thickness: its height over the acetate, and under the paper
-    foldSegments: 12,       // (not in spec) rows in the bend around the top edge
-    normalRepeat: 3,        // paperGrain tiles along the tape
-    normalScale: 0.3,
-    alphaTest: 0.5,
-    // (not in spec: §4.3 generates it) Kraft color from an ambientCG scan (Paper006, CC0), tinted
-    // so that its mean is `color`; textures.kraft's procedural noise when the file is missing.
-    kraft: 'assets/tape/Paper006_Color.jpg',
-    kraftTile: 0.1,         // (not in spec) m of tape per kraft tile
-    // (not in spec) The adhesive side, seen through the open acetate and on the flaps past the paper,
-    // looks darker and richer, like damp paper: its albedo is raised to this power.
-    adhesiveGamma: 1.25,
-    // (not in spec) Hand-torn ends: each tear wanders around its nominal end, `overhang` past the acetate.
-    tear: {
-      zone: 0.008,          // m of tape at each end that holds the tear, centred on the nominal end
-      slant: 0.0015,        // m: largest skew of a tear from one long edge of the tape to the other
-      jags: [               // jagged noise along the tear: straight runs between random knots
-        { wavelength: 0.006, amplitude: 0.0008 },
-        { wavelength: 0.0025, amplitude: 0.0004 },
-        { wavelength: 0.001, amplitude: 0.00015 },
-        { wavelength: 0.0004, amplitude: 0.00006 },
-      ],
-      // Light fibers the tear exposes: a margin up to `width` wide fading into the tape (its width
-      // wanders over `wavelength`), and loose fibers sticking out past the edge.
-      fringe: {
-        width: 0.0006, wavelength: 0.003, color: '#e2cfae', strength: 0.7,
-        fibers: { min: 15, max: 30 },          // per end
-        fiberLength: { min: 0.0001, max: 0.0004 },
-        fiberWidth: 0.00006,  // about a texel, so a strand stays unbroken
-        fiberSpreadDeg: 60,                    // off the tape's length
-      },
-      pxAlong: 128,         // texels along the tape in each end's zone
-      pxAcross: 512,        // texels across the tape
-      seeds: [31, 47],      // per set (A, B)
-    },
-  },
-
-  // §3 — setOffsetX = 0.030 + acetate.w / 2, so the acetates end up 60 mm apart.
   layout: { setOffsetX: 0.1495, clearAbove: 0.30 },
-
-  // §5.1 — 4 m (spec: 2 m) so the top-down view never reaches the edge at max zoom-out and
-  // pan; paperGrain tiles every 0.25 m either way.
   table: {
-    size: 4, normalRepeat: 16, normalScale: 0.1,
-    color: '#ede8df', roughness: 0.92,  // locked
+    size: 4,
+    color: '#ede8df', roughness: 0.92, // locked
   },
-
-  // §3, §6.2
   camera: {
     fov: 35, tiltDeg: 0, distance: 0.9, minDistance: 0.06, maxDistance: 1.4,
-    // Pan bounds keep the spec's margins around the sets and the open acetates.
     panX: 0.43, panZMin: -0.51, panZMax: 0.37,
     dampingFactor: 0.08,
-    zoomStep: 1.25,         // (not in spec) distance factor per −/+ button or key press
-    near: 0.01, far: 10,    // (not in spec)
+    zoomStep: 1.25,
+    near: 0.01, far: 10,
   },
-
-  // Mobile copy (user): one sheet on screen at a time; ← → at the bottom right switch pages.
   mobile: {
-    fitMargin: 1.08,        // a page's closed acetate fills the screen's tighter side to 1 / fitMargin
-    panX: 0.2,              // m: pan reach left and right of the current sheet
-    slideS: 0.45,           // s: switching pages slides the view across this long
+    fitMargin: 1.08,
+    panX: 0.2,
+    slideS: 0.45,
   },
-
-  // §6.1, §7.2
   flip: {
-    // D: spec 20 is damped enough that the sheet creeps onto the table without the overshoot it
-    // asks for; at 16 it lands after ~0.25 s, bounces once (free edge up 5–11 mm), settles by ~0.65 s.
-    K: 140, D: 16, wallD: 14, releaseLookahead: 0.15, minGrabDist: 0.05,
+    K: 140, D: 16, releaseLookahead: 0.15, minGrabDist: 0.05,
     clickPx: 4, clickMs: 200,
     settleAngle: 0.002, settleOmega: 0.01,
-    keys: ['1', '2'],       // toggle set A, B
-    // (not in spec) Within this angle of closed or open a drag turns the sheet by the pointer's
-    // projection on the table (§6.1); beyond it, blended in, the grabbed point follows the pointer
-    // exactly. Near the table the exact solution folds: lifting a point first moves it away from
-    // the view's center on screen, so it would jump.
+    keys: ['1', '2'],
     trackBlendDeg: 30,
-    maxOmega: 20,           // (not in spec) rad/s: the drag's angular velocity is clamped to this
-    omegaSmoothS: 0.05,     // (not in spec) s: ω eases toward the drag's rate, so sag and release don't flicker
-    bounce: 0.3,            // (not in spec) share of ω kept when a landing sheet bounces off the table or paper
-    // (not in spec) s: the hand takes up the sheet's weight (its bend, acetate.droop) when it grabs and
-    // gives it back when it lets go, while sag's pivot moves from the hand back to the hinge.
+    maxOmega: 20, // rad/s
+    omegaSmoothS: 0.05,
+    bounce: 0.3,
     holdEaseS: 0.12,
-    maxStepS: 0.05,         // (not in spec) s: longest time step, so a stalled tab doesn't fling the spring
+    maxStepS: 0.05,
   },
-
-  // §5.6
   light: {
     shadowMap: 2048,
-    keyIntensity: 1.5, fillIntensity: 0.35,  // locked
-    // exposure: spec starts at 1.0, which rendered the prints' midtones ~60 levels brighter than the
-    // scans and the table near white (238/255). At 0.5 midtones sit within ~10–15 of the scans.
-    exposure: 0.5,          // locked
-    // (not in spec) Levels black point after ACES, in display units 0–1 (0.05 ≈ 13/255); 0 = off.
-    // Clears the milky sheen over the prints' blacks; whites are unaffected.
-    blackPoint: 0.05,       // locked
-    keyColor: '#ffffff',    // locked
-    keyPosition: { x: -0.6, y: 1.2, z: 0.8 },  // locked; upper-left-front, relative to the sets' center
-    fillSky: '#ffffff', fillGround: '#d9d3c7',  // locked
+    keyIntensity: 1.5, fillIntensity: 0.35, // locked
+    exposure: 0.5, // locked
+    blackPoint: 0.05, // locked
+    keyColor: '#ffffff', // locked
+    keyPosition: { x: -0.6, y: 1.2, z: 0.8 }, // locked
+    fillSky: '#ffffff', fillGround: '#d9d3c7', // locked
     shadowRadius: 3,
-    shadowBias: -0.00005,   // (not in spec) no acne on the paper at this value
-    shadowNormalBias: 0,    // (not in spec)
-    shadowMargin: 0.02,     // (not in spec) padding around the fitted shadow camera
+    shadowBias: -0.00005,
+    shadowNormalBias: 0,
+    shadowMargin: 0.02,
   },
-
-  // §5.7
   contact: {
     closedOpacity: 0.12, openOpacity: 0.10,
-    lightOffset: 0.002,     // decal shift along the key light's shadow direction
-    cornerBand: 0.002,      // optional dark band under the lifted free corners
-    decalLift: 0.00005,     // (not in spec) decal height above the table, under the paper top
+    lightOffset: 0.002,
+    decalLift: 0.00005,
     color: '#000000',
   },
-
-  // §3
   environment: {
-    roomBlur: 0.04,         // locked; (not in spec) PMREM sigma for RoomEnvironment
-    hdrIntensity: 1,        // (not in spec) scene.environmentIntensity when env.hdr is used
+    roomBlur: 0.04, // locked
+    hdrIntensity: 1,
   },
-
-  // (not in spec) What the acetate reflects: its own small studio, so the sheet shows highlights
-  // without veiling the prints (user: "highlights only"). Overhead is dark, so a sheet lying flat
-  // stays clear. Two thin strips 30° off vertical to the left and right, running front to back,
-  // light the sheet only at steep views near the screen's sides. At 18° they were caught on the
-  // rest shape's wave crests as streaks; with the sheet flat at rest (user) they veiled the outer
-  // quarter of each print at the default view. Larger softboxes 40–65° off vertical light the
-  // tilted, bending sheet (flash, glints); the light floor stands in for the table in grazing
-  // reflections. Positions are directions from the reflection probe (room units); width runs
-  // along the panel's horizontal axis; intensities are HDR radiance.
   acetateStudio: {
     roomSize: 20,
     wallColor: '#0b0b0b',
     floor: { color: '#ede8df', intensity: 1.2 },
-    blur: 0.02,             // PMREM sigma
+    blur: 0.02, // PMREM sigma
     softboxes: [
-      { position: { x: -4.97, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },  // side strip, left
-      { position: { x: 4.97, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },   // side strip, right
-      { position: { x: -6, y: 7, z: 5 }, width: 6, height: 4, intensity: 8 },        // key side, upper-left-front
-      { position: { x: 0, y: 8, z: -6.5 }, width: 12, height: 1.2, intensity: 10 },  // long strip over the far side
-      { position: { x: 9, y: 4, z: -1 }, width: 3, height: 6, intensity: 5 },        // right-hand fill
+      { position: { x: -4.97, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },
+      { position: { x: 4.97, y: 8.6, z: 0 }, width: 8, height: 0.8, intensity: 2 },
+      { position: { x: -6, y: 7, z: 5 }, width: 6, height: 4, intensity: 8 },
+      { position: { x: 0, y: 8, z: -6.5 }, width: 12, height: 1.2, intensity: 10 },
+      { position: { x: 9, y: 4, z: -1 }, width: 3, height: 6, intensity: 5 },
     ],
   },
-
-  // §6.3
-  parallax: { envYawDeg: 3, envPitchDeg: 2, lerp: 0.08, fallbackTiltDeg: 1.5 },
-
-  // §6.2, §9
   perf: {
     maxPixelRatio: 2, transmissionFar: 0.5, transmissionNear: 1.0,
-    // Distances for the transmission scale (spec: 0.5 / 0.25 m). At the spec's half resolution the
-    // prints under the sheet turned to mush at the default 0.9 m view, so it stays full resolution
-    // out to 1.0 m and only drops toward 0.5 at max zoom-out; M7's slow-frame fallback remains.
-    transmissionFarDist: 1.4,   // camera distance at and above which transmission uses transmissionFar
-    transmissionNearDist: 1.0,  // …at and below which it uses transmissionNear; lerp between
-    slowFrameMs: 20, slowForS: 2,
-    slowGraceS: 3,              // (not in spec) after the scene is ready, before slow frames count
-    degradedTransmission: 0.35, // first fallback when slow; then clearcoat → 0
+    transmissionFarDist: 1.4,
+    transmissionNearDist: 1.0,
   },
-
-  // §6.4 (the bottom-left usage hint was removed at the user's request)
   ui: {
-    // (not in spec) The hand-shaped pointer (user) over the acetates, src/ui/cursors/*.svg.
     hand: {
       sizePx: 56,
-      hotspot: { x: 13.2, y: 21.4 },  // the pinch point, in the drawings' 64-unit viewBox
+      hotspot: { x: 13.2, y: 21.4 },
     },
   },
-
-  // §7.2
-  wall: { tiltDeg: 8, maxLiftDeg: 110, droop: 0.15 },
-
-  // §3, §4.1, §9 — paths are relative to the site root (files live in public/).
   assets: {
     sheetA: 'assets/sheet-a.jpg', sheetB: 'assets/sheet-b.jpg', env: 'assets/env.hdr',
-    scanMinPx: 4000, scanMaxPx: 4096,       // larger scans are downscaled to scanMaxPx
-    aspectTolerance: 0.02,  // (not in spec) warn when a scan isn't 8×10 within this fraction
   },
-
-  // §4.2 — procedural contact sheet, drawn in mm.
-  placeholder: {
-    pxPerMm: 11.8,                          // canvas resolution; the canvas is sized to the paper
-    seedA: 1, seedB: 2,                     // (not in spec) sheet B = different seed
-    borderMm: 6, borderColor: '#f2f0ea',    // white easel border
-    exposedColor: '#0a0a0a',                // fully exposed paper
-    vignette: 0.4,                          // (not in spec) corner darkening of the exposed area, 0–1
-    strips: 6, stripMm: 35, stripGapMm: 6,
-    // Spec says 6, but six frames at the 38 mm film pitch (226 mm) are wider than the 219 mm image
-    // area inside the easel border; five (188 mm) fit. At 6 the border crops both end frames.
-    framesPerStrip: 5,
-    stripColor: '#1c1c1c',                  // film rebate
-    stripJitterMm: 0.4, stripJitterDeg: 0.15,  // (not in spec) hand-laid strips
-    sprocket: {
-      color: '#080808', alongMm: 2.8, pitchMm: 4.75,
-      acrossMm: 2.0,        // (not in spec) KS perforation is ≈ 2.8 × 2.0 mm
-      edgeMm: 2.0,          // (not in spec) film edge to hole
-      cornerMm: 0.5,        // (not in spec)
-    },
-    frame: {
-      wMm: 36, hMm: 24, gapMm: 2, rects: { min: 2, max: 4 },
-      cornerMm: 0.4,                        // (not in spec) film-gate corner radius
-      tone: { min: 0.3, max: 0.7 },         // (not in spec) gradient ends; 0 = print black, 1 = paper white
-      rectDelta: { min: 0.1, max: 0.35 },   // (not in spec) rectangles darker/lighter by this much
-      rectSize: { min: 0.15, max: 0.6 },    // (not in spec) fraction of the frame
-      rectSoftMm: { min: 0.1, max: 2 },     // (not in spec) edge softness
-      mottle: 0.08, mottleCells: 4,         // (not in spec) low-frequency tonal wander
-      grain: 0.08,                          // (not in spec) per-pixel film grain
-      exposureVar: 0.6,                     // (not in spec) per-frame tone curve exponent 2^±exposureVar
-    },
-    marks: {
-      color: '#d8d8d8', sizeMm: 1.5,
-      font: '"Arial Narrow", Arial, sans-serif',  // drawn bold
-      filmNames: ['ILFORD HP5 PLUS'],
-      nameEvery: 2,                         // (not in spec) film name every N frames
-    },
-  },
-
-  // §4.3 — procedural maps, generated once at startup.
   textures: {
-    size: 1024,             // square, ≤ 1024²
-    grain: {
-      octaves: 3,
-      baseCells: 128,       // (not in spec) noise cells across the tile in the first octave
-      persistence: 0.6,     // (not in spec) amplitude ratio between octaves; > 0.5 favors fine tooth
-      slopeRms: 0.3,        // (not in spec) RMS normal-map slope before normalScale (1 = 45°)
-      seed: 7,              // (not in spec)
-    },
-    // smudge and scratch are the spec's procedural recipes; the ambientCG scans in acetate.wear
-    // are used instead (user). Kept for reference.
-    smudge: { base: 0.06, max: 0.25, ellipses: { min: 6, max: 10 }, ridgeBlobs: { min: 2, max: 3 } },
-    scratch: { lines: { min: 30, max: 60 }, widthPx: { min: 1, max: 2 } },
+    size: 1024,
     crease: {
       band: 0.025, lines: { min: 3, max: 5 },
-      widthMm: { min: 0.6, max: 1.4 },     // (not in spec) crease ridge width
-      depth: { min: 0.4, max: 1 },         // (not in spec) relative ridge heights
-      wanderMm: 0.6,                       // (not in spec) how far a crease line drifts along its length
-      wanderCycles: { min: 1, max: 3 },    // (not in spec) drifts per sheet width
-      slopeRms: 0.8,                       // (not in spec) normal strength inside the band, before normalScale
-      pxAcross: 256, pxAlong: 1024,        // (not in spec) map size: across the sheet, hinge → free edge
-      seed: 5,                             // (not in spec)
+      widthMm: { min: 0.6, max: 1.4 },
+      depth: { min: 0.4, max: 1 },
+      wanderMm: 0.6,
+      wanderCycles: { min: 1, max: 3 },
+      slopeRms: 0.8,
+      pxAcross: 256, pxAlong: 1024,
+      seed: 5,
     },
-    // Fallback when the kraft scan (tape.kraft) is missing: ±8% value variation on tape.color.
-    kraft: {
-      valueVar: 0.08,
-      px: 512, octaves: 3, baseCells: 32, persistence: 0.6, seed: 9,  // (not in spec) fBm per kraftTile: 3 mm mottling and finer
-    },
-    dust: { specks: { min: 20, max: 40 } },
     footprint: {
-      softEdge: 0.008,      // footprintShadow: 8 mm soft edge centred on the sheet's outline, alpha 1 → 0
-      pxPerMm: 2,           // (not in spec) texture resolution; ≤ 1024 px either way
+      softEdge: 0.008,
+      pxPerMm: 2,
     },
   },
 };

@@ -1,7 +1,3 @@
-/**
- * Mobile copy (user): one sheet on screen at a time; ← → at the bottom right switch between them, as
- * do the arrow keys. `show` is called with the new page's index; page 0 shows first.
- */
 export function createPager(count: number, show: (index: number) => void): void {
   let current = 0;
   const pager = document.createElement('div');
