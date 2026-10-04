@@ -35,15 +35,15 @@ export const config = {
     // Clear but slightly hazy (user): the base roughness softens what's seen through the sheet
     // (spec 0.08 is clear; above ~0.1 the frames go soft) while the clearcoat keeps the surface
     // highlights crisp; transmission just under 1 adds a faint milky scatter.
-    roughness: 0.12,
-    transmission: 0.985,
+    roughness: 0.06,
+    transmission: 0.99,
     // (not in spec) What's seen through the sheet. Slightly hazy plastic lying on a print passes it
     // sharp and scatters a little light into a soft glow, so instead of three's roughness-driven
     // blur (0.5 of it left the prints ~3 px soft: too blurry, user) the print is sampled sharp and
     // a blurred copy is mixed in: `share` of it everywhere, rising by `smudgeShare` under the
     // heaviest fingerprint, which reads milky. `glowLod` is the glow's width, as a mip level of the
     // screen-sized transmission buffer (2 = a quarter resolution).
-    haze: { share: 0.15, smudgeShare: 0.45, glowLod: 2 },
+    haze: { share: 0.05, smudgeShare: 0.25, glowLod: 2 },
     normalScale: 0.05,
     tint: '#ffffff',        // neutral clear (user); spec had a faint warm #f3f1ec
     // Flat at rest (user, 2026-09-30: "the acetate is usually flat on paper"): the rest shape's
@@ -92,7 +92,7 @@ export const config = {
       windowRadius: { min: 0.012, max: 0.028 },   // m
       windowFeather: 0.6,                         // fraction of a window's radius that fades out
       spotsTile: 0.2, spotsWeight: 0.1,           // faint water-spot haze everywhere
-      smudgeRoughness: 0.3, // base and clearcoat roughness scale up to this under the heaviest smudge
+      smudgeRoughness: 0.15, // base and clearcoat roughness scale up to this under the heaviest smudge
       scratchTile: 0.15,    // m of sheet per scratch tile
       scratchThreshold: 0.35, // mask level below which it's faint brushing, not a scratch: dropped
       scratchBlurPx: 1,     // soften the scratch mask so its normals don't stipple
@@ -324,7 +324,7 @@ export const config = {
     marks: {
       color: '#d8d8d8', sizeMm: 1.5,
       font: '"Arial Narrow", Arial, sans-serif',  // drawn bold
-      filmNames: ['MERIDIAN PAN 400', 'MERIDIAN PAN 125', 'HALDANE HP 400'],  // fake
+      filmNames: ['ILFORD HP5 PLUS'],
       nameEvery: 2,                         // (not in spec) film name every N frames
     },
   },
